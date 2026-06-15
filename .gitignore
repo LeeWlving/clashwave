@@ -1,0 +1,9 @@
+# Node
+node_modules/
+
+# Vitepress
+.vitepress/cache/
+.vitepress/dist/
+
+# Local files
+*.local.*
