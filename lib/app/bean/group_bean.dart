@@ -1,9 +1,7 @@
 import 'package:clash_for_flutter/app/bean/history_bean.dart';
-import 'package:dart_json_mapper/dart_json_mapper.dart';
 import '../enum/type_enum.dart';
 
 /// 分组代理项
-@JsonSerializable()
 class Group {
   String name;
   GroupType type;

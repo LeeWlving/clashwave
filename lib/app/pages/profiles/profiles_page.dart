@@ -1,4 +1,4 @@
-import 'package:asuka/asuka.dart' hide showDialog;
+import 'package:asuka/asuka.dart';
 import 'package:clash_for_flutter/app/bean/profile_base_bean.dart';
 import 'package:clash_for_flutter/app/bean/profile_file_bean.dart';
 import 'package:clash_for_flutter/app/bean/profile_url_bean.dart';
@@ -43,10 +43,14 @@ class _ProfilesPageState extends State<ProfilesPage> {
   }
 
   void _scrollListener() {
-    if (_scrollController.position.userScrollDirection == ScrollDirection.reverse && _showFab) {
+    if (_scrollController.position.userScrollDirection ==
+            ScrollDirection.reverse &&
+        _showFab) {
       setState(() => _showFab = false);
     }
-    if (_scrollController.position.userScrollDirection == ScrollDirection.forward && !_showFab) {
+    if (_scrollController.position.userScrollDirection ==
+            ScrollDirection.forward &&
+        !_showFab) {
       setState(() => _showFab = true);
     }
   }
@@ -62,35 +66,37 @@ class _ProfilesPageState extends State<ProfilesPage> {
         elevation: 7,
         child: SizedBox(
           height: 100,
-          child: ListView(children: [
-            ListTile(
-              title: const Text("文件"),
-              onTap: () {
-                Navigator.of(cxt).pop();
-                dialogPickerFile(
-                  label: "文件",
-                  onOk: (v) {
-                    var profile = ProfileFile.emptyBean()
-                      ..path = v
-                      ..name = basename(v);
-                    addProfile(profile);
-                  },
-                );
-              },
-            ),
-            ListTile(
-              title: const Text("URL"),
-              onTap: () {
-                Navigator.of(cxt).pop();
-                dialogInputValue(
-                  label: "URL",
-                  onOk: (v) {
-                    addProfile(ProfileURL.emptyBean()..url = v);
-                  },
-                );
-              },
-            ),
-          ]),
+          child: ListView(
+            children: [
+              ListTile(
+                title: const Text("文件"),
+                onTap: () {
+                  Navigator.of(cxt).pop();
+                  dialogPickerFile(
+                    label: "文件",
+                    onOk: (v) {
+                      var profile = ProfileFile.emptyBean()
+                        ..path = v
+                        ..name = basename(v);
+                      addProfile(profile);
+                    },
+                  );
+                },
+              ),
+              ListTile(
+                title: const Text("URL"),
+                onTap: () {
+                  Navigator.of(cxt).pop();
+                  dialogInputValue(
+                    label: "URL",
+                    onOk: (v) {
+                      addProfile(ProfileURL.emptyBean()..url = v);
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -99,7 +105,9 @@ class _ProfilesPageState extends State<ProfilesPage> {
   addProfile(ProfileBase profile) {
     var loading = Loading.builder();
     Asuka.addOverlay(loading);
-    _controller.addProfile(profile).then((_) => loading.remove()).catchError((e) {
+    _controller.addProfile(profile).then((_) => loading.remove()).catchError((
+      e,
+    ) {
       loading.remove();
       Asuka.showSnackBar(SnackBar(content: Text("导入异常: $e")));
     });
@@ -121,12 +129,16 @@ class _ProfilesPageState extends State<ProfilesPage> {
             decoration: InputDecoration(labelText: label),
             controller: pathController,
             onTap: () {
-              FilePicker.platform.pickFiles(
-                type: FileType.custom,
-                allowedExtensions: ["yml", "yaml"],
-              ).then((value) {
-                pathController.text = value?.files.single.path ?? "";
-              }).catchError((_) {});
+              FilePicker.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: ["yml", "yaml"],
+                  )
+                  .then((value) {
+                    if (value.isNotEmpty) {
+                      pathController.text = value.single.path ?? "";
+                    }
+                  })
+                  .catchError((_) {});
             },
           ),
           actions: [
@@ -208,19 +220,24 @@ class _ProfilesPageState extends State<ProfilesPage> {
 
   upgradeProfile(String file) {
     setState(() => _loadingList.add(file));
-    _controller.updateProfile(file).catchError((err) {
-      Asuka.showSnackBar(SnackBar(content: Text(err.message ?? "未知异常")));
-    }).then((value) => setState(() => _loadingList.remove(file)));
+    _controller
+        .updateProfile(file)
+        .catchError((err) {
+          Asuka.showSnackBar(SnackBar(content: Text(err.message ?? "未知异常")));
+        })
+        .then((value) => setState(() => _loadingList.remove(file)));
   }
 
   removeProfile(String file) {
-    Asuka.showSnackBar(SnackBar(
-      content: const Text("确定移除？"),
-      action: SnackBarAction(
-        label: "确定",
-        onPressed: () => _controller.removeProfile(file),
+    Asuka.showSnackBar(
+      SnackBar(
+        content: const Text("确定移除？"),
+        action: SnackBarAction(
+          label: "确定",
+          onPressed: () => _controller.removeProfile(file),
+        ),
       ),
-    ));
+    );
   }
 
   Widget _buildPanel(int index) {
@@ -234,7 +251,9 @@ class _ProfilesPageState extends State<ProfilesPage> {
       var userinfo = profile.userinfo;
       if (userinfo != null) {
         show
-          ..expire = userinfo.expire == null ? null : DateTime.fromMillisecondsSinceEpoch((userinfo.expire!) * 1000)
+          ..expire = userinfo.expire == null
+              ? null
+              : DateTime.fromMillisecondsSinceEpoch((userinfo.expire!) * 1000)
           ..use = (userinfo.upload ?? 0) + (userinfo.download ?? 0)
           ..total = userinfo.total ?? 0;
       }
@@ -256,9 +275,7 @@ class _ProfilesPageState extends State<ProfilesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const SysAppBar(
-        title: Text('订阅'),
-      ),
+      appBar: const SysAppBar(title: Text('订阅')),
       body: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
           final crossAxisCount = constraints.maxWidth < 460 ? 1 : 2;

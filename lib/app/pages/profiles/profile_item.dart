@@ -42,10 +42,10 @@ class SelectableCard extends StatelessWidget {
         child: Theme(
           data: Theme.of(context).copyWith(
             colorScheme: Theme.of(context).colorScheme.copyWith(
-                  brightness: Theme.of(context).brightness,
-                  onSurface: selected ? Colors.white : null,
-                  primary: selected ? Colors.orange : null,
-                ),
+              brightness: Theme.of(context).brightness,
+              onSurface: selected ? Colors.white : null,
+              primary: selected ? Colors.orange : null,
+            ),
             textSelectionTheme: TextSelectionThemeData(
               selectionColor: selected ? Colors.white : null,
             ),
@@ -72,33 +72,34 @@ class SelectableCard extends StatelessWidget {
                         child: Text(
                           maxLines: 1,
                           profile.type.value,
-                          style: Theme.of(ctx)
-                              .textTheme
-                              .titleSmall
-                              ?.copyWith(color: Theme.of(ctx).textSelectionTheme.selectionColor),
+                          style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
+                            color: Theme.of(
+                              ctx,
+                            ).textSelectionTheme.selectionColor,
+                          ),
                         ),
                       ),
                     ),
                     Text(
                       timeago.format(profile.lastUpdate, locale: "zh_cn"),
-                      style: Theme.of(ctx)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(color: Theme.of(ctx).textSelectionTheme.selectionColor),
+                      style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                        color: Theme.of(ctx).textSelectionTheme.selectionColor,
+                      ),
                     ),
                   ],
-                )
+                ),
               ];
 
               List<Widget> expireRow = [];
               if (profile.expire != null) {
-                expireRow.add(Text(
-                  DateFormat("yyyy/MM/dd HH:mm").format(profile.expire!),
-                  style: Theme.of(ctx)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: Theme.of(ctx).textSelectionTheme.selectionColor),
-                ));
+                expireRow.add(
+                  Text(
+                    DateFormat("yyyy/MM/dd HH:mm").format(profile.expire!),
+                    style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
+                      color: Theme.of(ctx).textSelectionTheme.selectionColor,
+                    ),
+                  ),
+                );
               }
               if (profile.use != null && profile.total != null) {
                 list.addAll([
@@ -106,48 +107,64 @@ class SelectableCard extends StatelessWidget {
                   LinearProgressIndicator(value: profile.use! / profile.total!),
                 ]);
                 expireRow.add(const SizedBox());
-                expireRow.add(Text(
-                  '${dataformat(profile.use!)}/${dataformat(profile.total!)}',
-                  style: Theme.of(ctx)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: Theme.of(ctx).textSelectionTheme.selectionColor),
-                ));
+                expireRow.add(
+                  Text(
+                    '${dataformat(profile.use!)}/${dataformat(profile.total!)}',
+                    style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
+                      color: Theme.of(ctx).textSelectionTheme.selectionColor,
+                    ),
+                  ),
+                );
               }
 
               if (expireRow.isNotEmpty) {
                 list.add(const SizedBox(height: 8.0));
-                list.add(Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: expireRow,
-                ));
+                list.add(
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: expireRow,
+                  ),
+                );
               }
 
               var btnList = [
                 IconButton(
                   tooltip: "修改名称",
-                  icon: Icon(Icons.edit_note_outlined, color: Theme.of(ctx).textSelectionTheme.selectionColor),
+                  icon: Icon(
+                    Icons.edit_note_outlined,
+                    color: Theme.of(ctx).textSelectionTheme.selectionColor,
+                  ),
                   onPressed: () => onChangeName(),
                 ),
                 IconButton(
                   tooltip: "修改源",
-                  icon: Icon(Icons.code_outlined, color: Theme.of(ctx).textSelectionTheme.selectionColor),
+                  icon: Icon(
+                    Icons.code_outlined,
+                    color: Theme.of(ctx).textSelectionTheme.selectionColor,
+                  ),
                   onPressed: () => onEdit(),
                 ),
                 IconButton(
                   tooltip: "移除",
-                  icon: Icon(Icons.delete_outline_outlined, color: Theme.of(ctx).textSelectionTheme.selectionColor),
+                  icon: Icon(
+                    Icons.delete_outline_outlined,
+                    color: Theme.of(ctx).textSelectionTheme.selectionColor,
+                  ),
                   onPressed: () => onRemove(),
                 ),
               ];
               if (profile.type == ProfileType.URL) {
                 btnList.insert(
-                    0,
-                    IconButton(
-                      tooltip: "更新",
-                      icon: Icon(Icons.refresh_rounded, color: Theme.of(ctx).textSelectionTheme.selectionColor),
-                      onPressed: () => onUpdate(),
-                    ));
+                  0,
+                  IconButton(
+                    tooltip: "更新",
+                    icon: Icon(
+                      Icons.refresh_rounded,
+                      color: Theme.of(ctx).textSelectionTheme.selectionColor,
+                    ),
+                    onPressed: () => onUpdate(),
+                  ),
+                );
               }
 
               return Container(
@@ -160,7 +177,13 @@ class SelectableCard extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: isLoading
-                          ? [const SizedBox(width: 20, height: 20, child: CircularProgressIndicator())]
+                          ? [
+                              const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(),
+                              ),
+                            ]
                           : btnList,
                     ),
                     // 添加蒙层及进度条

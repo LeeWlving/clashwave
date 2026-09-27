@@ -3,28 +3,19 @@ import 'dart:io';
 import 'package:clash_for_flutter/app/bean/tun_bean.dart';
 import 'package:clash_for_flutter/app/enum/type_enum.dart';
 import 'package:clash_for_flutter/app/utils/constants.dart';
-import 'package:dart_json_mapper/dart_json_mapper.dart';
-import 'package:settings_yaml/settings_yaml.dart';
+import 'package:yaml_edit/yaml_edit.dart';
 
-@JsonSerializable()
 class Config {
-  static final String _path = "${Constants.homeDir.path}${Constants.clashConfig}";
+  static final String _path =
+      "${Constants.homeDir.path}${Constants.clashConfig}";
 
-  @JsonProperty(name: "mixed-port")
   int? mixedPort;
-  @JsonProperty(name: "redir-port")
   int? redirPort;
-  @JsonProperty(name: "tproxy-port")
   int? tproxyPort;
-  @JsonProperty(name: "allow-lan")
   bool? allowLan;
-  @JsonProperty(name: "mode")
   Mode? mode;
-  @JsonProperty(name: "log-level")
   LogLevel? logLevel;
-  @JsonProperty(name: "ipv6")
   bool? ipv6;
-  @JsonProperty(name: "tun")
   Tun? tun;
 
   get tunEnable => tun?.enable;
@@ -40,16 +31,35 @@ class Config {
     this.tun,
   });
 
-  Future<void> saveFile() {
-    var yaml = SettingsYaml.load(pathToSettings: _path);
-    if (redirPort != null) (yaml["redir-port"] = redirPort);
-    if (tproxyPort != null) (yaml["tproxy-port"] = tproxyPort);
-    if (mixedPort != null) (yaml["mixed-port"] = mixedPort);
-    if (allowLan != null) (yaml["allow-lan"] = allowLan);
-    if (mode != null) (yaml["mode"] = mode?.value);
-    if (logLevel != null) (yaml["log-level"] = logLevel?.value);
-    if (ipv6 != null) (yaml["ipv6"] = ipv6);
-    return yaml.save();
+  Future<void> saveFile() async {
+    final yaml = _loadYaml();
+    if (redirPort != null) yaml.update(["redir-port"], redirPort);
+    if (tproxyPort != null) yaml.update(["tproxy-port"], tproxyPort);
+    if (mixedPort != null) yaml.update(["mixed-port"], mixedPort);
+    if (allowLan != null) yaml.update(["allow-lan"], allowLan);
+    if (mode != null) yaml.update(["mode"], mode!.value);
+    if (logLevel != null) yaml.update(["log-level"], logLevel!.value);
+    if (ipv6 != null) yaml.update(["ipv6"], ipv6);
+    await _saveYaml(yaml);
+  }
+
+  /// Keeps Mihomo's Clash-compatible controller on the random loopback port
+  /// selected for this app launch, without changing the user's other options.
+  static Future<void> ensureController() async {
+    final yaml = _loadYaml();
+    yaml.update(["external-controller"], Constants.rustAddr);
+    await _saveYaml(yaml);
+  }
+
+  static YamlEditor _loadYaml() {
+    final file = File(_path);
+    final source = file.existsSync() ? file.readAsStringSync() : '{}\n';
+    return YamlEditor(source.trim().isEmpty ? '{}\n' : source);
+  }
+
+  static Future<void> _saveYaml(YamlEditor yaml) async {
+    final file = await File(_path).create(recursive: true);
+    await file.writeAsString('${yaml.toString()}\n');
   }
 
   Config copyWith({

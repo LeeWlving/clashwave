@@ -9,6 +9,7 @@ import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:material_ui/material_ui.dart' as mui show DataCell;
 import 'package:timeago/timeago.dart' as timeago;
 
 class ConnectionsPage extends StatefulWidget {
@@ -50,20 +51,30 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
   }
 
   void _scrollListener() {
-    if (_controller.position.userScrollDirection == ScrollDirection.reverse && _showFab) {
+    if (_controller.position.userScrollDirection == ScrollDirection.reverse &&
+        _showFab) {
       setState(() => _showFab = false);
     }
-    if (_controller.position.userScrollDirection == ScrollDirection.forward && !_showFab) {
+    if (_controller.position.userScrollDirection == ScrollDirection.forward &&
+        !_showFab) {
       setState(() => _showFab = true);
     }
   }
 
-  List<ConnectionShow> toShow(List<Connection> oldValue, List<Connection> newValue) {
+  List<ConnectionShow> toShow(
+    List<Connection> oldValue,
+    List<Connection> newValue,
+  ) {
     var result = <ConnectionShow>[];
     // 对数据进行按时间排序
-    newValue.sort((a, b) => DateTime.parse(a.start).compareTo(DateTime.parse(b.start)));
+    newValue.sort(
+      (a, b) => DateTime.parse(a.start).compareTo(DateTime.parse(b.start)),
+    );
     for (var c in newValue) {
-      var o = oldValue.firstWhere((element) => element.id == c.id, orElse: () => Connection.empty());
+      var o = oldValue.firstWhere(
+        (element) => element.id == c.id,
+        orElse: () => Connection.empty(),
+      );
       var speed = StringBuffer();
       if (o.id != "") {
         if (c.upload - o.upload != 0) {
@@ -75,20 +86,24 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
         }
       }
       if (speed.isEmpty) speed.write("-");
-      result.add(ConnectionShow(
-        id: c.id,
-        host: c.metadata.host == "" ? "${c.metadata.destinationIP}:${c.metadata.destinationPort}" : c.metadata.host,
-        network: c.metadata.network.toUpperCase(),
-        type: c.metadata.type,
-        chains: c.chains.join(" / "),
-        rule: c.rulePayload != "" ? "${c.rule} :: ${c.rulePayload}" : c.rule,
-        process: c.metadata.processPath,
-        upload: dataformat(c.upload),
-        download: dataformat(c.download),
-        sourceIP: c.metadata.sourceIP,
-        time: timeago.format(DateTime.parse(c.start), locale: "zh_cn"),
-        speed: speed.toString(),
-      ));
+      result.add(
+        ConnectionShow(
+          id: c.id,
+          host: c.metadata.host == ""
+              ? "${c.metadata.destinationIP}:${c.metadata.destinationPort}"
+              : c.metadata.host,
+          network: c.metadata.network.toUpperCase(),
+          type: c.metadata.type,
+          chains: c.chains.join(" / "),
+          rule: c.rulePayload != "" ? "${c.rule} :: ${c.rulePayload}" : c.rule,
+          process: c.metadata.processPath,
+          upload: dataformat(c.upload),
+          download: dataformat(c.download),
+          sourceIP: c.metadata.sourceIP,
+          time: timeago.format(DateTime.parse(c.start), locale: "zh_cn"),
+          speed: speed.toString(),
+        ),
+      );
     }
     return result;
   }
@@ -110,36 +125,60 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
               children: [
                 TableRow(
                   children: [
-                    const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text("ID")),
-                    Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text(connection.id)),
-                  ],
-                ),
-                TableRow(
-                  children: [
-                    const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text("网络")),
-                    Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Text(connection.metadata.network.toUpperCase())),
-                  ],
-                ),
-                TableRow(
-                  children: [
-                    const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text("类型")),
-                    Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text(connection.metadata.type)),
-                  ],
-                ),
-                TableRow(
-                  children: [
-                    const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text("域名")),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text("ID"),
+                    ),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Text("${connection.metadata.host}:${connection.metadata.destinationPort}"),
+                      child: Text(connection.id),
                     ),
                   ],
                 ),
                 TableRow(
                   children: [
-                    const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text("IP")),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text("网络"),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text(connection.metadata.network.toUpperCase()),
+                    ),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text("类型"),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text(connection.metadata.type),
+                    ),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text("域名"),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text(
+                        "${connection.metadata.host}:${connection.metadata.destinationPort}",
+                      ),
+                    ),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text("IP"),
+                    ),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Text(
@@ -152,67 +191,111 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                 ),
                 TableRow(
                   children: [
-                    const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text("来源")),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text("来源"),
+                    ),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Text("${connection.metadata.sourceIP}:${connection.metadata.sourcePort}"),
+                      child: Text(
+                        "${connection.metadata.sourceIP}:${connection.metadata.sourcePort}",
+                      ),
                     ),
                   ],
                 ),
                 TableRow(
                   children: [
-                    const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text("进程")),
-                    Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6), child: Text(connection.metadata.processPath)),
-                  ],
-                ),
-                TableRow(
-                  children: [
-                    const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text("路径")),
-                    Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6), child: Text(connection.metadata.processPath)),
-                  ],
-                ),
-                TableRow(
-                  children: [
-                    const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text("规则")),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text("进程"),
+                    ),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Text(connection.rulePayload != ""
-                          ? "${connection.rule} :: ${connection.rulePayload}"
-                          : connection.rule),
+                      child: Text(connection.metadata.processPath),
                     ),
                   ],
                 ),
                 TableRow(
                   children: [
-                    const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text("代理")),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text("路径"),
+                    ),
                     Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6), child: Text(connection.chains.join(" / "))),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text(connection.metadata.processPath),
+                    ),
                   ],
                 ),
                 TableRow(
                   children: [
-                    const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text("上传")),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text("规则"),
+                    ),
                     Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6), child: Text(dataformat(connection.upload))),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text(
+                        connection.rulePayload != ""
+                            ? "${connection.rule} :: ${connection.rulePayload}"
+                            : connection.rule,
+                      ),
+                    ),
                   ],
                 ),
                 TableRow(
                   children: [
-                    const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text("下载")),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text("代理"),
+                    ),
                     Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6), child: Text(dataformat(connection.download))),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text(connection.chains.join(" / ")),
+                    ),
                   ],
                 ),
                 TableRow(
                   children: [
-                    const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text("状态")),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text("上传"),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text(dataformat(connection.upload)),
+                    ),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text("下载"),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text(dataformat(connection.download)),
+                    ),
+                  ],
+                ),
+                TableRow(
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text("状态"),
+                    ),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: completed
-                          ? const Text("连接中", style: TextStyle(color: Colors.green))
-                          : const Text("已断开", style: TextStyle(color: Colors.red)),
+                          ? const Text(
+                              "连接中",
+                              style: TextStyle(color: Colors.green),
+                            )
+                          : const Text(
+                              "已断开",
+                              style: TextStyle(color: Colors.red),
+                            ),
                     ),
                   ],
                 ),
@@ -262,91 +345,64 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
           Theme(
             data: ThemeData(
               scrollbarTheme: ScrollbarThemeData(
-                  thumbVisibility: MaterialStateProperty.all(true),
-                  thumbColor: MaterialStateProperty.all<Color>(Colors.black26)),
+                thumbVisibility: MaterialStateProperty.all(true),
+                thumbColor: MaterialStateProperty.all<Color>(Colors.black26),
+              ),
             ),
             child: DataTable2(
-                scrollController: _controller,
-                horizontalScrollController: _horizontalController,
-                columnSpacing: 6,
-                horizontalMargin: 6,
-                minWidth: 1500,
-                smRatio: 0.8,
-                lmRatio: 2,
-                columns: const [
-                  DataColumn2(
-                    label: Text("域名"),
-                    size: ColumnSize.L,
-                  ),
-                  DataColumn2(
-                    label: Text("网络"),
-                    size: ColumnSize.S,
-                  ),
-                  DataColumn2(
-                    label: Text("类型"),
-                    size: ColumnSize.M,
-                  ),
-                  DataColumn2(
-                    label: Text("节点链"),
-                    size: ColumnSize.L,
-                  ),
-                  DataColumn2(
-                    label: Text("规则"),
-                    size: ColumnSize.L,
-                  ),
-                  DataColumn2(
-                    label: Text("进程"),
-                    size: ColumnSize.S,
-                  ),
-                  DataColumn2(
-                    label: Text("速率"),
-                    size: ColumnSize.M,
-                  ),
-                  DataColumn2(
-                    label: Text("上传"),
-                    size: ColumnSize.S,
-                  ),
-                  DataColumn2(
-                    label: Text("下载"),
-                    size: ColumnSize.S,
-                  ),
-                  DataColumn2(
-                    label: Text("来源IP"),
-                    size: ColumnSize.S,
-                  ),
-                  DataColumn2(
-                    label: Text("连接时间"),
-                    size: ColumnSize.M,
-                  ),
-                ],
-                rows: List<DataRow2>.generate(_data.length, (index) {
-                  var c = _data[index];
-                  return DataRow2(
-                    onTap: () => detail(index),
-                    cells: [
-                      DataCell(Text(c.host)),
-                      DataCell(Text(c.network)),
-                      DataCell(Text(c.type)),
-                      DataCell(Text(
+              scrollController: _controller,
+              horizontalScrollController: _horizontalController,
+              columnSpacing: 6,
+              horizontalMargin: 6,
+              minWidth: 1500,
+              smRatio: 0.8,
+              lmRatio: 2,
+              columns: const [
+                DataColumn2(label: Text("域名"), size: ColumnSize.L),
+                DataColumn2(label: Text("网络"), size: ColumnSize.S),
+                DataColumn2(label: Text("类型"), size: ColumnSize.M),
+                DataColumn2(label: Text("节点链"), size: ColumnSize.L),
+                DataColumn2(label: Text("规则"), size: ColumnSize.L),
+                DataColumn2(label: Text("进程"), size: ColumnSize.S),
+                DataColumn2(label: Text("速率"), size: ColumnSize.M),
+                DataColumn2(label: Text("上传"), size: ColumnSize.S),
+                DataColumn2(label: Text("下载"), size: ColumnSize.S),
+                DataColumn2(label: Text("来源IP"), size: ColumnSize.S),
+                DataColumn2(label: Text("连接时间"), size: ColumnSize.M),
+              ],
+              rows: List<DataRow2>.generate(_data.length, (index) {
+                var c = _data[index];
+                return DataRow2(
+                  onTap: () => detail(index),
+                  cells: [
+                    mui.DataCell(Text(c.host)),
+                    mui.DataCell(Text(c.network)),
+                    mui.DataCell(Text(c.type)),
+                    mui.DataCell(
+                      Text(
                         c.chains,
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
-                      )),
-                      DataCell(Text(
+                      ),
+                    ),
+                    mui.DataCell(
+                      Text(
                         c.rule,
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
-                      )),
-                      DataCell(Text(c.process)),
-                      DataCell(Text(c.speed)),
-                      DataCell(Text(c.upload)),
-                      DataCell(Text(c.download)),
-                      DataCell(Text(c.sourceIP)),
-                      DataCell(Text(c.time)),
-                    ],
-                  );
-                })),
-          )
+                      ),
+                    ),
+                    mui.DataCell(Text(c.process)),
+                    mui.DataCell(Text(c.speed)),
+                    mui.DataCell(Text(c.upload)),
+                    mui.DataCell(Text(c.download)),
+                    mui.DataCell(Text(c.sourceIP)),
+                    mui.DataCell(Text(c.time)),
+                  ],
+                );
+              }),
+            ),
+          ),
         ],
       ),
       floatingActionButton: _showFab

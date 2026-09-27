@@ -18,16 +18,18 @@ class TrayController {
     // 监听系统代理
     reaction(
       (_) => _config.systemProxy,
-      (status) => _menuReset(isChecked: status, mode: _core.clash.mode ?? Mode.Rule),
+      (status) =>
+          _menuReset(isChecked: status, mode: _core.clash.mode ?? Mode.Rule),
     );
     // 监听代理模式
     reaction(
       (_) => _core.clash.mode,
-      (mode) => _menuReset(isChecked: _config.systemProxy, mode: mode ?? Mode.Rule),
+      (mode) =>
+          _menuReset(isChecked: _config.systemProxy, mode: mode ?? Mode.Rule),
     );
     _tray.initSystemTray(
       iconPath: Platform.isWindows ? 'assets/icon.ico' : 'assets/logo_64.png',
-      toolTip: "Clash for Flutter",
+      toolTip: "ClashWave",
     );
     _tray.registerSystemTrayEventHandler((e) {
       if (e == kSystemTrayEventClick) {
@@ -37,7 +39,10 @@ class TrayController {
       }
     });
     // 初始化托盘菜单
-    _menuReset(isChecked: _config.systemProxy, mode: _core.clash.mode ?? Mode.Rule);
+    _menuReset(
+      isChecked: _config.systemProxy,
+      mode: _core.clash.mode ?? Mode.Rule,
+    );
   }
 
   void _menuReset({required bool isChecked, required Mode mode}) async {
@@ -56,23 +61,26 @@ class TrayController {
           }
         },
       ),
-      SubMenu(label: "模式", children: [
-        MenuItemCheckbox(
-          checked: mode == Mode.Rule,
-          label: Mode.Rule.value,
-          onClicked: (_) => _core.setState(mode: Mode.Rule),
-        ),
-        MenuItemCheckbox(
-          checked: mode == Mode.Global,
-          label: Mode.Global.value,
-          onClicked: (_) => _core.setState(mode: Mode.Global),
-        ),
-        MenuItemCheckbox(
-          checked: mode == Mode.Direct,
-          label: Mode.Direct.value,
-          onClicked: (_) => _core.setState(mode: Mode.Direct),
-        ),
-      ]),
+      SubMenu(
+        label: "模式",
+        children: [
+          MenuItemCheckbox(
+            checked: mode == Mode.Rule,
+            label: Mode.Rule.value,
+            onClicked: (_) => _core.setState(mode: Mode.Rule),
+          ),
+          MenuItemCheckbox(
+            checked: mode == Mode.Global,
+            label: Mode.Global.value,
+            onClicked: (_) => _core.setState(mode: Mode.Global),
+          ),
+          MenuItemCheckbox(
+            checked: mode == Mode.Direct,
+            label: Mode.Direct.value,
+            onClicked: (_) => _core.setState(mode: Mode.Direct),
+          ),
+        ],
+      ),
       MenuItemLabel(
         label: "退出",
         onClicked: (_) async {

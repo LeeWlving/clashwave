@@ -26,14 +26,10 @@ abstract class CoreConfigBase with Store {
   int get mixedPort => clash.mixedPort ?? 0;
 
   void init() {
-    reaction(
-      (_) => clash,
-      (Config config) {
-        config.saveFile();
-        _request.patchConfigs(config);
-      },
-      delay: 1000,
-    );
+    reaction((_) => clash, (Config config) {
+      config.saveFile();
+      _request.patchConfigs(config);
+    }, delay: 1000);
   }
 
   @action

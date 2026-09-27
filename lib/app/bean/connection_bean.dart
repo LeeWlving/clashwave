@@ -1,6 +1,3 @@
-import 'package:dart_json_mapper/dart_json_mapper.dart';
-
-@JsonSerializable()
 class Connection {
   String id;
   int upload;
@@ -23,30 +20,29 @@ class Connection {
   });
 
   Connection.empty()
-      : this(
-          id: "",
-          upload: 0,
-          download: 0,
-          start: "",
-          chains: [],
-          rule: "",
-          rulePayload: "",
-          metadata: Metadata(
-            network: "",
-            type: "",
-            host: "",
-            processPath: "",
-            sourceIP: "",
-            sourcePort: "",
-            destinationIP: "",
-            destinationPort: "",
-            dnsMode: "",
-            specialProxy: "",
-          ),
-        );
+    : this(
+        id: "",
+        upload: 0,
+        download: 0,
+        start: "",
+        chains: [],
+        rule: "",
+        rulePayload: "",
+        metadata: Metadata(
+          network: "",
+          type: "",
+          host: "",
+          processPath: "",
+          sourceIP: "",
+          sourcePort: "",
+          destinationIP: "",
+          destinationPort: "",
+          dnsMode: "",
+          specialProxy: "",
+        ),
+      );
 }
 
-@JsonSerializable()
 class Metadata {
   String network;
   String type;
@@ -73,7 +69,6 @@ class Metadata {
   });
 }
 
-@JsonSerializable()
 class Snapshot {
   int uploadTotal;
   int downloadTotal;

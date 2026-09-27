@@ -14,14 +14,21 @@ class _AppWidgetState extends State<AppWidget> {
   @override
   Widget build(BuildContext context) {
     var app = MaterialApp.router(
-      title: "Clash for Flutter",
+      title: "ClashWave",
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      supportedLocales: const [Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans', countryCode: "CN")],
-      locale: const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans', countryCode: "CN"),
-      theme: ThemeData(
-        useMaterial3: true,
-        primarySwatch: Colors.blue,
+      supportedLocales: const [
+        Locale.fromSubtags(
+          languageCode: 'zh',
+          scriptCode: 'Hans',
+          countryCode: "CN",
+        ),
+      ],
+      locale: const Locale.fromSubtags(
+        languageCode: 'zh',
+        scriptCode: 'Hans',
+        countryCode: "CN",
       ),
+      theme: ThemeData(useMaterial3: true, primarySwatch: Colors.blue),
       routerConfig: Modular.routerConfig,
       builder: Asuka.builder,
       // navigatorObservers: [Asuka.asukaHeroController],

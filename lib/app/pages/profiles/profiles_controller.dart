@@ -8,7 +8,7 @@ import 'package:clash_for_flutter/app/enum/type_enum.dart';
 import 'package:clash_for_flutter/app/source/app_config.dart';
 import 'package:clash_for_flutter/app/source/request.dart';
 import 'package:clash_for_flutter/app/utils/constants.dart';
-import 'package:dart_json_mapper/dart_json_mapper.dart';
+import 'package:clash_for_flutter/app/utils/app_json.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
@@ -53,8 +53,6 @@ class ProfileController {
             ..file = file;
         });
         break;
-      default:
-        return Future(() => null);
     }
 
     return handle.then((p) {
@@ -95,8 +93,7 @@ class ProfileController {
     var tempList = _config.profiles.toList();
     var index = tempList.indexWhere((e) => e.file == file);
 
-    var profile = JsonMapper.clone<ProfileURL>(tempList[index] as ProfileURL);
-    if (profile == null) return;
+    var profile = AppJson.cloneProfileUrl(tempList[index] as ProfileURL);
 
     try {
       profile = await _request.getSubscribe(

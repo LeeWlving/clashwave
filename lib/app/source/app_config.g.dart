@@ -12,33 +12,37 @@ mixin _$AppConfig on AppConfigBase, Store {
   Computed<ProfileBase?>? _$activeComputed;
 
   @override
-  ProfileBase? get active =>
-      (_$activeComputed ??= Computed<ProfileBase?>(() => super.active,
-              name: 'AppConfigBase.active'))
-          .value;
+  ProfileBase? get active => (_$activeComputed ??= Computed<ProfileBase?>(
+    () => super.active,
+    name: 'AppConfigBase.active',
+  )).value;
   Computed<String?>? _$selectedFileComputed;
 
   @override
-  String? get selectedFile =>
-      (_$selectedFileComputed ??= Computed<String?>(() => super.selectedFile,
-              name: 'AppConfigBase.selectedFile'))
-          .value;
+  String? get selectedFile => (_$selectedFileComputed ??= Computed<String?>(
+    () => super.selectedFile,
+    name: 'AppConfigBase.selectedFile',
+  )).value;
   Computed<bool>? _$tunIfComputed;
 
   @override
-  bool get tunIf => (_$tunIfComputed ??=
-          Computed<bool>(() => super.tunIf, name: 'AppConfigBase.tunIf'))
-      .value;
+  bool get tunIf => (_$tunIfComputed ??= Computed<bool>(
+    () => super.tunIf,
+    name: 'AppConfigBase.tunIf',
+  )).value;
   Computed<List<ProfileBase>>? _$profilesComputed;
 
   @override
   List<ProfileBase> get profiles =>
-      (_$profilesComputed ??= Computed<List<ProfileBase>>(() => super.profiles,
-              name: 'AppConfigBase.profiles'))
-          .value;
+      (_$profilesComputed ??= Computed<List<ProfileBase>>(
+        () => super.profiles,
+        name: 'AppConfigBase.profiles',
+      )).value;
 
-  late final _$systemProxyAtom =
-      Atom(name: 'AppConfigBase.systemProxy', context: context);
+  late final _$systemProxyAtom = Atom(
+    name: 'AppConfigBase.systemProxy',
+    context: context,
+  );
 
   @override
   bool get systemProxy {
@@ -53,8 +57,10 @@ mixin _$AppConfig on AppConfigBase, Store {
     });
   }
 
-  late final _$clashForMeAtom =
-      Atom(name: 'AppConfigBase.clashForMe', context: context);
+  late final _$clashForMeAtom = Atom(
+    name: 'AppConfigBase.clashForMe',
+    context: context,
+  );
 
   @override
   ClashForMeConfig get clashForMe {
@@ -69,49 +75,60 @@ mixin _$AppConfig on AppConfigBase, Store {
     });
   }
 
-  late final _$_initConfigAsyncAction =
-      AsyncAction('AppConfigBase._initConfig', context: context);
+  late final _$_initConfigAsyncAction = AsyncAction(
+    'AppConfigBase._initConfig',
+    context: context,
+  );
 
   @override
   Future _initConfig() {
     return _$_initConfigAsyncAction.run(() => super._initConfig());
   }
 
-  late final _$openProxyAsyncAction =
-      AsyncAction('AppConfigBase.openProxy', context: context);
+  late final _$openProxyAsyncAction = AsyncAction(
+    'AppConfigBase.openProxy',
+    context: context,
+  );
 
   @override
   Future<void> openProxy() {
     return _$openProxyAsyncAction.run(() => super.openProxy());
   }
 
-  late final _$closeProxyAsyncAction =
-      AsyncAction('AppConfigBase.closeProxy', context: context);
+  late final _$closeProxyAsyncAction = AsyncAction(
+    'AppConfigBase.closeProxy',
+    context: context,
+  );
 
   @override
   Future<void> closeProxy() {
     return _$closeProxyAsyncAction.run(() => super.closeProxy());
   }
 
-  late final _$AppConfigBaseActionController =
-      ActionController(name: 'AppConfigBase', context: context);
+  late final _$AppConfigBaseActionController = ActionController(
+    name: 'AppConfigBase',
+    context: context,
+  );
 
   @override
-  dynamic setState(
-      {String? selectedFile,
-      List<ProfileBase>? profiles,
-      String? mmdbUrl,
-      String? delayTestUrl,
-      bool? tunIf}) {
+  dynamic setState({
+    String? selectedFile,
+    List<ProfileBase>? profiles,
+    String? mmdbUrl,
+    String? delayTestUrl,
+    bool? tunIf,
+  }) {
     final _$actionInfo = _$AppConfigBaseActionController.startAction(
-        name: 'AppConfigBase.setState');
+      name: 'AppConfigBase.setState',
+    );
     try {
       return super.setState(
-          selectedFile: selectedFile,
-          profiles: profiles,
-          mmdbUrl: mmdbUrl,
-          delayTestUrl: delayTestUrl,
-          tunIf: tunIf);
+        selectedFile: selectedFile,
+        profiles: profiles,
+        mmdbUrl: mmdbUrl,
+        delayTestUrl: delayTestUrl,
+        tunIf: tunIf,
+      );
     } finally {
       _$AppConfigBaseActionController.endAction(_$actionInfo);
     }

@@ -1,19 +1,11 @@
-import 'package:dart_json_mapper/dart_json_mapper.dart';
-
 /// 订阅信息
-@JsonSerializable()
 class SubUserinfo {
   int? upload;
   int? download;
   int? total;
   int? expire;
 
-  SubUserinfo({
-    this.upload,
-    this.download,
-    this.total,
-    this.expire,
-  });
+  SubUserinfo({this.upload, this.download, this.total, this.expire});
 
   factory SubUserinfo.formHString(String info) {
     var list = info.split(";");

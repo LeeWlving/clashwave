@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 
@@ -7,12 +8,20 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/services.dart';
 
 class CoreControl {
-  static const MethodChannel _channel = MethodChannel('cn.mapleafgo/socks_vpn_plugin');
+  static const MethodChannel _channel = MethodChannel('io.qzz.wenyun/mihomo');
   static late final Clash _clash;
+  static final _protocolUrls = StreamController<String>.broadcast();
+
+  static Stream<String> get protocolUrls => _protocolUrls.stream;
 
   // 初始化clash
   static void init() {
     if (!Constants.isDesktop) {
+      _channel.setMethodCallHandler((call) async {
+        if (call.method == 'protocolUrl' && call.arguments is String) {
+          _protocolUrls.add(call.arguments as String);
+        }
+      });
       return;
     }
 
@@ -45,29 +54,44 @@ class CoreControl {
 
   static Future<bool?> setConfig(File config) {
     if (Constants.isDesktop) {
-      return Future<bool>.sync(() => _clash.SetConfig(config.path.toNativeUtf8().cast()) == 1);
+      return Future<bool>.sync(
+        () => _clash.SetConfig(config.path.toNativeUtf8().cast()) == 1,
+      );
     }
     return _channel.invokeMethod<bool>('setConfig', {"config": config.path});
   }
 
   static Future<bool?> setHomeDir(Directory dir) {
     if (Constants.isDesktop) {
-      return Future<bool>.sync(() => _clash.SetHomeDir(dir.path.toNativeUtf8().cast()) == 1);
+      return Future<bool>.sync(
+        () => _clash.SetHomeDir(dir.path.toNativeUtf8().cast()) == 1,
+      );
     }
     return _channel.invokeMethod<bool>('setHomeDir', {"dir": dir.path});
   }
 
   static Future<String?> startRust(String addr) {
     if (Constants.isDesktop) {
-      return Future<String>.sync(() => _clash.StartRust(addr.toNativeUtf8().cast()).cast<Utf8>().toDartString());
+      return Future<String>.sync(
+        () => _clash.StartRust(
+          addr.toNativeUtf8().cast(),
+        ).cast<Utf8>().toDartString(),
+      );
     }
     return _channel.invokeMethod<String>('startRust', {"addr": addr});
   }
 
   static Future<bool?> verifyMMDB(String path) {
     if (Constants.isDesktop) {
-      return Future<bool>.sync(() => _clash.VerifyMMDB(path.toNativeUtf8().cast()) == 1);
+      return Future<bool>.sync(
+        () => _clash.VerifyMMDB(path.toNativeUtf8().cast()) == 1,
+      );
     }
     return _channel.invokeMethod<bool>('verifyMMDB', {"path": path});
+  }
+
+  static Future<String?> getInitialProtocolUrl() {
+    if (Constants.isDesktop) return Future.value();
+    return _channel.invokeMethod<String>('getInitialUrl');
   }
 }

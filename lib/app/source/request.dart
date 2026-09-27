@@ -13,7 +13,7 @@ import 'package:clash_for_flutter/app/bean/proxy_providers_bean.dart';
 import 'package:clash_for_flutter/app/bean/sub_userinfo_bean.dart';
 import 'package:clash_for_flutter/app/enum/type_enum.dart';
 import 'package:clash_for_flutter/app/utils/constants.dart';
-import 'package:dart_json_mapper/dart_json_mapper.dart';
+import 'package:clash_for_flutter/app/utils/app_json.dart';
 import 'package:dio/dio.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -28,7 +28,7 @@ class Request {
 
   final _dio = Dio(
     BaseOptions(
-      headers: {'User-Agent': 'Clash for Flutter'},
+      headers: {'User-Agent': 'ClashWave/2.0'},
       connectTimeout: const Duration(seconds: 3),
     ),
   );
@@ -100,22 +100,26 @@ class Request {
   /// 获取所有代理
   Future<Proxies?> getProxies() async {
     var res = await _clashDio.get<Map<String, dynamic>>("/proxies");
-    return JsonMapper.fromMap<Proxies>(res.data);
+    return AppJson.fromMap<Proxies>(res.data);
   }
 
   /// 获取单个代理
   Future<dynamic> oneProxies(String name) async {
     var res = await _clashDio.get<Map<String, dynamic>>("/proxies/$name");
     var data = res.data?.containsKey("now");
-    return data == true ? JsonMapper.fromMap<Group>(res.data) : JsonMapper.fromMap<Proxy>(res.data);
+    return data == true
+        ? AppJson.fromMap<Group>(res.data)
+        : AppJson.fromMap<Proxy>(res.data);
   }
 
   /// 获取单个代理的延迟
   Future<int?> getProxyDelay(String name, String url) {
-    return _clashDio.get<Map>("/proxies/$name/delay", queryParameters: {
-      "timeout": 2900,
-      "url": url,
-    }).then((res) => res.data?["delay"]);
+    return _clashDio
+        .get<Map>(
+          "/proxies/$name/delay",
+          queryParameters: {"timeout": 2900, "url": url},
+        )
+        .then((res) => res.data?["delay"]);
   }
 
   /// 切换 Selector 中选中的代理
@@ -133,7 +137,7 @@ class Request {
   /// 获得当前的基础设置
   Future<Config?> getConfigs() async {
     var res = await _clashDio.get<Map<String, dynamic>>("/configs");
-    return JsonMapper.fromMap<Config>(res.data);
+    return AppJson.fromMap<Config>(res.data);
   }
 
   /// 切换配置文件 [path] 必须为绝对路径
@@ -150,14 +154,14 @@ class Request {
   Future<bool> patchConfigs(Config config) async {
     var resp = await _clashDio.patch<void>(
       "/configs",
-      data: JsonMapper.serialize(config),
+      data: AppJson.toMap(config),
     );
     return resp.statusCode == HttpStatus.noContent;
   }
 
   Future<ProxyProviders?> getProxyProviders() async {
     var res = await _clashDio.get<Map<String, dynamic>>("/providers/proxies");
-    return JsonMapper.fromMap<ProxyProviders>(res.data);
+    return AppJson.fromMap<ProxyProviders>(res.data);
   }
 
   /// 获取内核版本
@@ -167,19 +171,27 @@ class Request {
   }
 
   Stream<NetSpeed?> traffic() {
-    var channel = WebSocketChannel.connect(Uri.parse("ws://${Constants.rustAddr}/traffic"));
-    return channel.stream.map((event) => JsonMapper.deserialize<NetSpeed>(event));
+    var channel = WebSocketChannel.connect(
+      Uri.parse("ws://${Constants.rustAddr}/traffic"),
+    );
+    return channel.stream.map((event) => AppJson.fromJson<NetSpeed>(event));
   }
 
   Stream<LogData?> logs(LogLevel? level) {
-    var uri = Uri.parse("ws://${Constants.rustAddr}/logs?level=${level?.value ?? ""}");
+    var uri = Uri.parse(
+      "ws://${Constants.rustAddr}/logs?level=${level?.value ?? ""}",
+    );
     var channel = WebSocketChannel.connect(uri);
-    return channel.stream.map((event) => JsonMapper.deserialize<LogData>(event)?..time = DateTime.now());
+    return channel.stream.map(
+      (event) => AppJson.fromJson<LogData>(event)?..time = DateTime.now(),
+    );
   }
 
   Stream<Snapshot?> connections() {
-    var channel = WebSocketChannel.connect(Uri.parse("ws://${Constants.rustAddr}/connections"));
-    return channel.stream.map((event) => JsonMapper.deserialize<Snapshot>(event));
+    var channel = WebSocketChannel.connect(
+      Uri.parse("ws://${Constants.rustAddr}/connections"),
+    );
+    return channel.stream.map((event) => AppJson.fromJson<Snapshot>(event));
   }
 
   Future<bool> closeAllConnections() async {

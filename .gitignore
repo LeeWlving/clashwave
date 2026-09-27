@@ -43,8 +43,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/key.properties
+*.jks
+*.keystore
 
 /appimage-build/
 /AppDir/
 
 libclash.*
+
+# Local migration/build references
+/.gradle-dist/
+/.tmp-*/

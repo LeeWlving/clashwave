@@ -9,8 +9,10 @@ part of 'proxys_model.dart';
 // ignore_for_file: non_constant_identifier_names, unnecessary_brace_in_string_interps, unnecessary_lambdas, prefer_expression_function_bodies, lines_longer_than_80_chars, avoid_as, avoid_annotating_with_dynamic, no_leading_underscores_for_local_identifiers
 
 mixin _$ProxysModel on ProxysModelBase, Store {
-  late final _$groupsAtom =
-      Atom(name: 'ProxysModelBase.groups', context: context);
+  late final _$groupsAtom = Atom(
+    name: 'ProxysModelBase.groups',
+    context: context,
+  );
 
   @override
   List<Group> get groups {
@@ -25,8 +27,10 @@ mixin _$ProxysModel on ProxysModelBase, Store {
     });
   }
 
-  late final _$globalAtom =
-      Atom(name: 'ProxysModelBase.global', context: context);
+  late final _$globalAtom = Atom(
+    name: 'ProxysModelBase.global',
+    context: context,
+  );
 
   @override
   Group? get global {
@@ -41,8 +45,10 @@ mixin _$ProxysModel on ProxysModelBase, Store {
     });
   }
 
-  late final _$sortTypeAtom =
-      Atom(name: 'ProxysModelBase.sortType', context: context);
+  late final _$sortTypeAtom = Atom(
+    name: 'ProxysModelBase.sortType',
+    context: context,
+  );
 
   @override
   SortType get sortType {
@@ -57,8 +63,10 @@ mixin _$ProxysModel on ProxysModelBase, Store {
     });
   }
 
-  late final _$proxiesMapAtom =
-      Atom(name: 'ProxysModelBase.proxiesMap', context: context);
+  late final _$proxiesMapAtom = Atom(
+    name: 'ProxysModelBase.proxiesMap',
+    context: context,
+  );
 
   @override
   Map<String, dynamic> get proxiesMap {
@@ -73,23 +81,28 @@ mixin _$ProxysModel on ProxysModelBase, Store {
     });
   }
 
-  late final _$ProxysModelBaseActionController =
-      ActionController(name: 'ProxysModelBase', context: context);
+  late final _$ProxysModelBaseActionController = ActionController(
+    name: 'ProxysModelBase',
+    context: context,
+  );
 
   @override
-  dynamic setState(
-      {Group? global,
-      SortType? sortType,
-      List<Group>? groups,
-      Map<String, dynamic>? proxiesMap}) {
+  dynamic setState({
+    Group? global,
+    SortType? sortType,
+    List<Group>? groups,
+    Map<String, dynamic>? proxiesMap,
+  }) {
     final _$actionInfo = _$ProxysModelBaseActionController.startAction(
-        name: 'ProxysModelBase.setState');
+      name: 'ProxysModelBase.setState',
+    );
     try {
       return super.setState(
-          global: global,
-          sortType: sortType,
-          groups: groups,
-          proxiesMap: proxiesMap);
+        global: global,
+        sortType: sortType,
+        groups: groups,
+        proxiesMap: proxiesMap,
+      );
     } finally {
       _$ProxysModelBaseActionController.endAction(_$actionInfo);
     }

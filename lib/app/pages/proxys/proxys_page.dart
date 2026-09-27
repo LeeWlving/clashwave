@@ -37,10 +37,14 @@ class _ProxysPageState extends State<ProxysPage> {
   }
 
   void _scrollListener() {
-    if (_scrollController.position.userScrollDirection == ScrollDirection.reverse && _showFab) {
+    if (_scrollController.position.userScrollDirection ==
+            ScrollDirection.reverse &&
+        _showFab) {
       setState(() => _showFab = false);
     }
-    if (_scrollController.position.userScrollDirection == ScrollDirection.forward && !_showFab) {
+    if (_scrollController.position.userScrollDirection ==
+            ScrollDirection.forward &&
+        !_showFab) {
       setState(() => _showFab = true);
     }
   }
@@ -48,9 +52,7 @@ class _ProxysPageState extends State<ProxysPage> {
   void testDelay(TabController tabController) async {
     var overlay = Loading.builder();
     Asuka.addOverlay(overlay);
-    await _controller.delayGroup(
-      _controller.model.groups[tabController.index],
-    );
+    await _controller.delayGroup(_controller.model.groups[tabController.index]);
     overlay.remove();
   }
 
@@ -101,83 +103,91 @@ class _ProxysPageState extends State<ProxysPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Observer(builder: (c) {
-      var groups = _controller.model.groups;
-      return DefaultTabController(
-        length: groups.length,
-        child: Scaffold(
-          appBar: SysAppBar(
-            title: groups.isNotEmpty
-                ? TabBar(
-                    labelColor: Theme.of(context).textTheme.titleLarge?.color,
-                    tabs: groups.map((e) => Tab(text: e.name)).toList(),
-                    isScrollable: true,
+    return Observer(
+      builder: (c) {
+        var groups = _controller.model.groups;
+        return DefaultTabController(
+          length: groups.length,
+          child: Scaffold(
+            appBar: SysAppBar(
+              title: groups.isNotEmpty
+                  ? TabBar(
+                      labelColor: Theme.of(context).textTheme.titleLarge?.color,
+                      tabs: groups.map((e) => Tab(text: e.name)).toList(),
+                      isScrollable: true,
+                    )
+                  : const Text("代理"),
+              actions: [
+                IconButton(
+                  tooltip: "排序",
+                  icon: const Icon(Icons.sort_outlined),
+                  onPressed: sortAction,
+                ),
+              ],
+            ),
+            body: groups.isNotEmpty
+                ? TabBarView(
+                    children: groups.map((group) {
+                      var groupName = group.name;
+                      var groupNow = group.now;
+                      var list = _controller.getShowList(group);
+                      return ListView.separated(
+                        controller: _scrollController,
+                        itemBuilder: (_, i) {
+                          var show = list[i];
+                          var name = show.name;
+                          var delay = show.delay < 0
+                              ? null
+                              : Text(
+                                  show.delay == 0
+                                      ? "..."
+                                      : show.delay.toString(),
+                                );
+                          return ListTile(
+                            visualDensity: const VisualDensity(
+                              vertical: VisualDensity.minimumDensity,
+                            ),
+                            selected: groupNow == name,
+                            title: Text(
+                              name,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            subtitle: Text(
+                              show.subTitle,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            trailing: delay,
+                            onTap: () => _controller.select(
+                              name: groupName,
+                              select: name,
+                            ),
+                          );
+                        },
+                        separatorBuilder: (_, __) => const Divider(height: 5),
+                        itemCount: list.length,
+                      );
+                    }).toList(),
                   )
-                : const Text("代理"),
-            actions: [
-              IconButton(
-                tooltip: "排序",
-                icon: const Icon(Icons.sort_outlined),
-                onPressed: sortAction,
-              ),
-            ],
+                : const Center(child: Text("暂无可选代理节点")),
+            floatingActionButton: _showFab
+                ? Builder(
+                    builder: (cxt) {
+                      var tabController = DefaultTabController.of(cxt);
+                      return FloatingActionButton(
+                        tooltip: "测延迟",
+                        onPressed: () {
+                          if (groups.isNotEmpty) {
+                            testDelay(tabController);
+                          }
+                        },
+                        child: const Icon(Icons.flash_on),
+                      );
+                    },
+                  )
+                : null,
           ),
-          body: groups.isNotEmpty
-              ? TabBarView(
-                  children: groups.map((group) {
-                    var groupName = group.name;
-                    var groupNow = group.now;
-                    var list = _controller.getShowList(group);
-                    return ListView.separated(
-                      controller: _scrollController,
-                      itemBuilder: (_, i) {
-                        var show = list[i];
-                        var name = show.name;
-                        var delay = show.delay < 0 ? null : Text(show.delay == 0 ? "..." : show.delay.toString());
-                        return ListTile(
-                          visualDensity: const VisualDensity(
-                            vertical: VisualDensity.minimumDensity,
-                          ),
-                          selected: groupNow == name,
-                          title: Text(
-                            name,
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                          subtitle: Text(
-                            show.subTitle,
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          trailing: delay,
-                          onTap: () => _controller.select(
-                            name: groupName,
-                            select: name,
-                          ),
-                        );
-                      },
-                      separatorBuilder: (_, __) => const Divider(height: 5),
-                      itemCount: list.length,
-                    );
-                  }).toList(),
-                )
-              : const Center(child: Text("暂无可选代理节点")),
-          floatingActionButton: _showFab
-              ? Builder(
-                  builder: (cxt) {
-                    var tabController = DefaultTabController.of(cxt);
-                    return FloatingActionButton(
-                      tooltip: "测延迟",
-                      onPressed: () {
-                        if (groups.isNotEmpty) {
-                          testDelay(tabController);
-                        }
-                      },
-                      child: const Icon(Icons.flash_on),
-                    );
-                  },
-                )
-              : null,
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 }

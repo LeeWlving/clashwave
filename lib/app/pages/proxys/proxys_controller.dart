@@ -32,7 +32,8 @@ class ProxysController {
     Map<String, dynamic> proxiesMap = {};
     for (var item in list) {
       proxiesMap[item.name] = item;
-      if (item is Group && item.type == GroupType.Selector) { // 可选的分组
+      if (item is Group && item.type == GroupType.Selector) {
+        // 可选的分组
         groupList.add(item);
       }
     }
@@ -45,10 +46,7 @@ class ProxysController {
     model.setState(groups: groupList, proxiesMap: proxiesMap, global: global);
   }
 
-  Future<void> select({
-    required String name,
-    required String select,
-  }) async {
+  Future<void> select({required String name, required String select}) async {
     await _request.changeProxy(name: name, select: select);
     await getProxies();
   }
@@ -56,7 +54,10 @@ class ProxysController {
   Future<void> delayGroup(Group group) {
     final delayTestUrl = _config.clashForMe.delayTestUrl;
     return Future.wait(
-      group.all.map((name) => _request.getProxyDelay(name, delayTestUrl).catchError((_) => 0)),
+      group.all.map(
+        (name) =>
+            _request.getProxyDelay(name, delayTestUrl).catchError((_) => 0),
+      ),
     ).then((_) => getProxies());
   }
 

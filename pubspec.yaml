@@ -17,10 +17,10 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.2.7
+version: 2.0.0+20000
 
 environment:
-  sdk: '>=3.2.0 <4.0.0'
+  sdk: '>=3.8.0 <4.0.0'
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -34,8 +34,8 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-  window_manager: ^0.3.7
-  launch_at_startup: ^0.2.2
+  window_manager: ^0.5.2
+  launch_at_startup: ^0.5.1
   system_tray: ^2.0.3
   desktop_lifecycle: ^0.1.1
   proxy_manager: ^0.0.3
@@ -45,26 +45,26 @@ dependencies:
   flutter_modular: ^6.3.2
   path_provider: ^2.1.0
   ffi: ^2.1.0
-  protocol_handler: ^0.1.5
-  file_picker: ^6.1.1
-  package_info_plus: ^5.0.1
+  file_picker: ^13.1.0
+  package_info_plus: ^10.2.1
   url_launcher: ^6.2.1
-  web_socket_channel: ^2.4.0
+  web_socket_channel: ^3.0.3
+  intl: ^0.20.3
+  path: ^1.9.1
 
-  dart_json_mapper: ^2.2.9
-  dart_json_mapper_mobx: ^2.0.5
   mobx: ^2.2.1
   flutter_mobx: ^2.0.6+5
 
-  easy_sidemenu: ^0.5.0
+  easy_sidemenu: ^1.0.0
   asuka: ^2.2.0
-  settings_yaml: ^7.0.0
-  settings_ui: ^2.0.2
+  yaml_edit: ^2.2.4
+  settings_ui: ^4.0.1
   cupertino_icons: ^1.0.6
-  data_table_2: ^2.5.8
+  data_table_2: ^3.0.0
+  material_ui: ^1.4.0
   timeago: ^3.6.0
   flutter_staggered_grid_view: ^0.7.0
-  extended_text: ^12.0.0
+  extended_text: ^15.0.2
 
 dev_dependencies:
   flutter_test:
@@ -75,10 +75,15 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^3.0.1
+  flutter_lints: ^6.0.0
   build_runner: ^2.4.6
-  ffigen: ^10.0.0
+  ffigen: ^22.0.0
   mobx_codegen: ^2.3.0
+
+dependency_overrides:
+  # launch_at_startup is source-compatible with the maintained v3 API, which
+  # is required by current Windows plugins using package:win32 6.x.
+  win32_registry: ^3.0.3
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

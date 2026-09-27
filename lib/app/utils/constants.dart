@@ -2,7 +2,8 @@ import 'dart:io';
 
 /// 常量类
 class Constants {
-  static final isDesktop = Platform.isMacOS || Platform.isWindows || Platform.isLinux;
+  static final isDesktop =
+      Platform.isMacOS || Platform.isWindows || Platform.isLinux;
 
   /// rust 控制服务地址
   static late final String rustAddr;
@@ -11,13 +12,14 @@ class Constants {
   static late final Directory homeDir;
 
   /// 开源地址
-  static const sourceUrl = "https://github.com/mapleafgo/clash-for-flutter";
+  static const sourceUrl = "https://clashwave.wenyun.qzz.io";
 
   /// 官网
-  static const homeUrl = "https://mapleafgo.github.io/clash-for-flutter";
+  static const homeUrl = "https://clashwave.wenyun.qzz.io";
 
   /// 检测最新版本
-  static const releaseUrl = "https://api.github.com/repos/mapleafgo/clash-for-flutter/releases/latest";
+  static const releaseUrl =
+      "https://clashwave.wenyun.qzz.io/api/releases/latest";
 
   /// 下载的配置文件路径
   static const profilesPath = "/profiles";
@@ -43,7 +45,8 @@ class Constants {
 
 /// 默认配置值
 class DefaultConfigValue {
-  static const mmdbUrl = "http://www.ideame.top/mmdb/Country.mmdb";
+  static const mmdbUrl =
+      "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb";
 
   static const delayTestUrl = "http://www.gstatic.com/generate_204";
 }

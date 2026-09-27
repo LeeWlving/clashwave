@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:asuka/asuka.dart';
 import 'package:clash_for_flutter/app/bean/profile_url_bean.dart';
 import 'package:clash_for_flutter/app/component/drawer_component.dart';
@@ -5,9 +7,9 @@ import 'package:clash_for_flutter/app/component/loading_component.dart';
 import 'package:clash_for_flutter/app/pages/router.dart';
 import 'package:clash_for_flutter/app/source/app_config.dart';
 import 'package:clash_for_flutter/app/source/request.dart';
+import 'package:clash_for_flutter/core_control.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:protocol_handler/protocol_handler.dart';
 
 class IndexMobilePage extends StatefulWidget {
   const IndexMobilePage({super.key});
@@ -16,17 +18,21 @@ class IndexMobilePage extends StatefulWidget {
   State<IndexMobilePage> createState() => _IndexPageState();
 }
 
-class _IndexPageState extends State<IndexMobilePage> with ProtocolListener, WidgetsBindingObserver {
+class _IndexPageState extends State<IndexMobilePage>
+    with WidgetsBindingObserver {
   final _config = Modular.get<AppConfig>();
   final _request = Modular.get<Request>();
 
   final PageController _page = PageController();
+  StreamSubscription<String>? _protocolSubscription;
 
   @override
   void initState() {
     super.initState();
-    // 协议监听
-    protocolHandler.addListener(this);
+    _protocolSubscription = CoreControl.protocolUrls.listen(_onProtocolUrl);
+    CoreControl.getInitialProtocolUrl().then((url) {
+      if (url != null) _onProtocolUrl(url);
+    });
     // 移动端前后台监听
     WidgetsBinding.instance.addObserver(this);
     Modular.to.navigate("/tab/home/");
@@ -34,7 +40,7 @@ class _IndexPageState extends State<IndexMobilePage> with ProtocolListener, Widg
 
   @override
   void dispose() {
-    protocolHandler.removeListener(this);
+    _protocolSubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -55,8 +61,7 @@ class _IndexPageState extends State<IndexMobilePage> with ProtocolListener, Widg
   }
 
   /// 外链接
-  @override
-  void onProtocolUrlReceived(String url) {
+  void _onProtocolUrl(String url) {
     var uri = Uri.parse(Uri.decodeFull(url));
     // 导入订阅
     if (uri.host == "install-config") {
@@ -69,17 +74,21 @@ class _IndexPageState extends State<IndexMobilePage> with ProtocolListener, Widg
 
         var loading = Loading.builder();
         Asuka.addOverlay(loading);
-        _request.getSubscribe(profile: profile, profilesDir: _config.profilesPath).then((p) {
-          var tempList = _config.profiles.toList();
-          tempList.add(p);
-          _config.setState(profiles: tempList);
-          Asuka.showSnackBar(const SnackBar(content: Text("导入成功")));
-        }).catchError((e) {
-          Asuka.showSnackBar(SnackBar(content: Text("导入异常: $e")));
-        }).then((_) {
-          loading.remove();
-          _page.jumpToPage(2);
-        });
+        _request
+            .getSubscribe(profile: profile, profilesDir: _config.profilesPath)
+            .then((p) {
+              var tempList = _config.profiles.toList();
+              tempList.add(p);
+              _config.setState(profiles: tempList);
+              Asuka.showSnackBar(const SnackBar(content: Text("导入成功")));
+            })
+            .catchError((e) {
+              Asuka.showSnackBar(SnackBar(content: Text("导入异常: $e")));
+            })
+            .then((_) {
+              loading.remove();
+              _page.jumpToPage(2);
+            });
       } else {
         Asuka.showSnackBar(const SnackBar(content: Text("导入订阅链接有误")));
       }
@@ -88,16 +97,19 @@ class _IndexPageState extends State<IndexMobilePage> with ProtocolListener, Widg
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [
-      AppDrawer(page: _page),
-      Expanded(
-        child: PageView.builder(
-          controller: _page,
-          itemCount: menu.size,
-          onPageChanged: (i) => Modular.to.navigate("/tab${menu.getPath(i)}/"),
-          itemBuilder: (_, __) => const RouterOutlet(),
+    return Row(
+      children: [
+        AppDrawer(page: _page),
+        Expanded(
+          child: PageView.builder(
+            controller: _page,
+            itemCount: menu.size,
+            onPageChanged: (i) =>
+                Modular.to.navigate("/tab${menu.getPath(i)}/"),
+            itemBuilder: (_, __) => const RouterOutlet(),
+          ),
         ),
-      )
-    ]);
+      ],
+    );
   }
 }

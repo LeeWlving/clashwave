@@ -1,4 +1,4 @@
-import 'package:asuka/asuka.dart' hide showDialog;
+import 'package:asuka/asuka.dart';
 import 'package:clash_for_flutter/app/component/sys_app_bar.dart';
 import 'package:clash_for_flutter/app/enum/type_enum.dart';
 import 'package:clash_for_flutter/app/source/app_config.dart';
@@ -37,21 +37,26 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void checkUpdate() async {
-    _request.latest().then((value) {
-      if (_version == value) {
-        Asuka.showSnackBar(
-          const SnackBar(content: Text('当前已经是最新版本！')),
-        );
-      } else {
-        Asuka.showSnackBar(SnackBar(
-          content: Text("最新版本号为: $value"),
-          action: SnackBarAction(
-            label: "前往下载最新版",
-            onPressed: () => launchUrl(Uri.parse("${Constants.sourceUrl}/releases/latest")),
-          ),
-        ));
-      }
-    }).catchError((err) {});
+    _request
+        .latest()
+        .then((value) {
+          if (_version == value) {
+            Asuka.showSnackBar(const SnackBar(content: Text('当前已经是最新版本！')));
+          } else {
+            Asuka.showSnackBar(
+              SnackBar(
+                content: Text("最新版本号为: $value"),
+                action: SnackBarAction(
+                  label: "前往下载最新版",
+                  onPressed: () => launchUrl(
+                    Uri.parse("${Constants.sourceUrl}/releases/latest"),
+                  ),
+                ),
+              ),
+            );
+          }
+        })
+        .catchError((err) {});
   }
 
   setValue({
@@ -173,142 +178,147 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(context) {
     return Scaffold(
       appBar: const SysAppBar(title: Text("设置")),
-      body: Observer(builder: (_) {
-        var redirPort = _core.clash.redirPort ?? 0;
-        var tproxyPort = _core.clash.tproxyPort ?? 0;
-        var mixedPort = _core.clash.mixedPort ?? 0;
+      body: Observer(
+        builder: (_) {
+          var redirPort = _core.clash.redirPort ?? 0;
+          var tproxyPort = _core.clash.tproxyPort ?? 0;
+          var mixedPort = _core.clash.mixedPort ?? 0;
 
-        var allowLan = _core.clash.allowLan ?? false;
-        var ipv6 = _core.clash.ipv6 ?? false;
-        var mode = _core.clash.mode ?? Mode.Rule;
-        var logLevel = _core.clash.logLevel ?? LogLevel.info;
+          var allowLan = _core.clash.allowLan ?? false;
+          var ipv6 = _core.clash.ipv6 ?? false;
+          var mode = _core.clash.mode ?? Mode.Rule;
+          var logLevel = _core.clash.logLevel ?? LogLevel.info;
 
-        var mmdbUrl = _config.clashForMe.mmdbUrl;
-        var delayTestUrl = _config.clashForMe.delayTestUrl;
+          var mmdbUrl = _config.clashForMe.mmdbUrl;
+          var delayTestUrl = _config.clashForMe.delayTestUrl;
 
-        return SettingsList(
-          platform: DevicePlatform.macOS,
-          sections: [
-            SettingsSection(
-              title: const Text('Clash 代理端口'),
-              tiles: <SettingsTile>[
-                SettingsTile.navigation(
-                  title: const Text('Http & Socks'),
-                  value: Text(mixedPort.toString()),
-                  onPressed: (_) {
-                    setValue(
-                      title: "Mixed",
-                      initialValue: mixedPort.toString(),
-                      onOk: (v) => _core.setState(mixedPort: int.parse(v)),
-                    );
-                  },
-                ),
-                SettingsTile.navigation(
-                  title: const Text('Redir'),
-                  value: Text(redirPort.toString()),
-                  onPressed: (_) {
-                    setValue(
-                      title: "Redir",
-                      initialValue: redirPort.toString(),
-                      onOk: (v) => _core.setState(redirPort: int.parse(v)),
-                    );
-                  },
-                ),
-                SettingsTile.navigation(
-                  title: const Text('Tproxy'),
-                  value: Text(tproxyPort.toString()),
-                  onPressed: (_) {
-                    setValue(
-                      title: "Tproxy",
-                      initialValue: tproxyPort.toString(),
-                      onOk: (v) => _core.setState(tproxyPort: int.parse(v)),
-                    );
-                  },
-                ),
-              ],
-            ),
-            SettingsSection(
-              title: const Text('Clash 设置'),
-              tiles: <SettingsTile>[
-                SettingsTile.switchTile(
-                  title: const Text("允许局域网"),
-                  initialValue: allowLan,
-                  onToggle: (v) => _core.setState(allowLan: v),
-                ),
-                SettingsTile.switchTile(
-                  title: const Text("IPv6"),
-                  initialValue: ipv6,
-                  onToggle: (v) => _core.setState(ipv6: v),
-                ),
-                SettingsTile.navigation(
-                  title: const Text('代理模式'),
-                  value: Text(mode.value),
-                  onPressed: (_) => selectMode(),
-                ),
-                SettingsTile.navigation(
-                  title: const Text('日志等级'),
-                  value: Text(logLevel.value.toUpperCase()),
-                  onPressed: (_) => selectLogLevel(),
-                ),
-              ],
-            ),
-            SettingsSection(
-              title: const Text('其他设置'),
-              tiles: <SettingsTile>[
-                SettingsTile.navigation(
-                  title: const Row(
-                    children: [
-                      Text("MMDB Url"),
-                      MmdbRefreshButton(),
-                    ],
+          return SettingsList(
+            platform: DevicePlatform.macOS,
+            sections: [
+              SettingsSection(
+                title: const Text('Clash 代理端口'),
+                tiles: <SettingsTile>[
+                  SettingsTile.navigation(
+                    title: const Text('Http & Socks'),
+                    value: Text(mixedPort.toString()),
+                    onPressed: (_) {
+                      setValue(
+                        title: "Mixed",
+                        initialValue: mixedPort.toString(),
+                        onOk: (v) => _core.setState(mixedPort: int.parse(v)),
+                      );
+                    },
                   ),
-                  value: Text(mmdbUrl),
-                  onPressed: (_) {
-                    setValue(
-                      title: "MMDB Url",
-                      decoration: DefaultConfigValue.mmdbUrl,
-                      initialValue: mmdbUrl,
-                      onOk: (v) => _config.setState(mmdbUrl: v),
-                    );
-                  },
-                ),
-                SettingsTile.navigation(
-                  title: const Text("延迟测试Url"),
-                  value: Text(delayTestUrl),
-                  onPressed: (_) {
-                    setValue(
-                      title: "延迟测试Url",
-                      decoration: DefaultConfigValue.delayTestUrl,
-                      initialValue: delayTestUrl,
-                      onOk: (v) => _config.setState(delayTestUrl: v),
-                    );
-                  },
-                ),
-              ],
-            ),
-            SettingsSection(
-              title: const Text("关于"),
-              tiles: [
-                SettingsTile.navigation(
-                  title: const Text("官网"),
-                  value: const Text(Constants.homeUrl, overflow: TextOverflow.ellipsis),
-                  onPressed: (_) => launchUrl(Uri.parse(Constants.homeUrl)),
-                ),
-                SettingsTile.navigation(
-                  title: const Text("开源地址"),
-                  value: const Text(Constants.sourceUrl, overflow: TextOverflow.ellipsis),
-                  onPressed: (_) => launchUrl(Uri.parse(Constants.sourceUrl)),
-                ),
-                SettingsTile.navigation(
-                  title: const Text("版本号"),
-                  value: Text(_version),
-                  onPressed: (_) => checkUpdate(),
-                ),
-              ],
-            )
-          ],
-        );
-      }),
+                  SettingsTile.navigation(
+                    title: const Text('Redir'),
+                    value: Text(redirPort.toString()),
+                    onPressed: (_) {
+                      setValue(
+                        title: "Redir",
+                        initialValue: redirPort.toString(),
+                        onOk: (v) => _core.setState(redirPort: int.parse(v)),
+                      );
+                    },
+                  ),
+                  SettingsTile.navigation(
+                    title: const Text('Tproxy'),
+                    value: Text(tproxyPort.toString()),
+                    onPressed: (_) {
+                      setValue(
+                        title: "Tproxy",
+                        initialValue: tproxyPort.toString(),
+                        onOk: (v) => _core.setState(tproxyPort: int.parse(v)),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              SettingsSection(
+                title: const Text('Clash 设置'),
+                tiles: <SettingsTile>[
+                  SettingsTile.switchTile(
+                    title: const Text("允许局域网"),
+                    initialValue: allowLan,
+                    onToggle: (v) => _core.setState(allowLan: v),
+                  ),
+                  SettingsTile.switchTile(
+                    title: const Text("IPv6"),
+                    initialValue: ipv6,
+                    onToggle: (v) => _core.setState(ipv6: v),
+                  ),
+                  SettingsTile.navigation(
+                    title: const Text('代理模式'),
+                    value: Text(mode.value),
+                    onPressed: (_) => selectMode(),
+                  ),
+                  SettingsTile.navigation(
+                    title: const Text('日志等级'),
+                    value: Text(logLevel.value.toUpperCase()),
+                    onPressed: (_) => selectLogLevel(),
+                  ),
+                ],
+              ),
+              SettingsSection(
+                title: const Text('其他设置'),
+                tiles: <SettingsTile>[
+                  SettingsTile.navigation(
+                    title: const Row(
+                      children: [Text("MMDB Url"), MmdbRefreshButton()],
+                    ),
+                    value: Text(mmdbUrl),
+                    onPressed: (_) {
+                      setValue(
+                        title: "MMDB Url",
+                        decoration: DefaultConfigValue.mmdbUrl,
+                        initialValue: mmdbUrl,
+                        onOk: (v) => _config.setState(mmdbUrl: v),
+                      );
+                    },
+                  ),
+                  SettingsTile.navigation(
+                    title: const Text("延迟测试Url"),
+                    value: Text(delayTestUrl),
+                    onPressed: (_) {
+                      setValue(
+                        title: "延迟测试Url",
+                        decoration: DefaultConfigValue.delayTestUrl,
+                        initialValue: delayTestUrl,
+                        onOk: (v) => _config.setState(delayTestUrl: v),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              SettingsSection(
+                title: const Text("关于"),
+                tiles: [
+                  SettingsTile.navigation(
+                    title: const Text("官网"),
+                    value: const Text(
+                      Constants.homeUrl,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onPressed: (_) => launchUrl(Uri.parse(Constants.homeUrl)),
+                  ),
+                  SettingsTile.navigation(
+                    title: const Text("开源地址"),
+                    value: const Text(
+                      Constants.sourceUrl,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onPressed: (_) => launchUrl(Uri.parse(Constants.sourceUrl)),
+                  ),
+                  SettingsTile.navigation(
+                    title: const Text("版本号"),
+                    value: Text(_version),
+                    onPressed: (_) => checkUpdate(),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -332,48 +342,55 @@ class _MmdbRefreshButtonState extends State<MmdbRefreshButton> {
       if (_value < 1) {
         Asuka.showSnackBar(const SnackBar(content: Text("下载中，请稍等")));
       } else {
-        Asuka.showSnackBar(const SnackBar(content: Text("已下载完成，请重启应用以启用新的MMDB")));
+        Asuka.showSnackBar(
+          const SnackBar(content: Text("已下载完成，请重启应用以启用新的MMDB")),
+        );
       }
       return;
     }
     _request
         .downFile(
-      urlPath: _config.clashForMe.mmdbUrl,
-      savePath: "${Constants.homeDir.path}${Constants.mmdb}",
-      onReceiveProgress: (received, total) {
-        setState(() => _value = received / total);
-      },
-    )
+          urlPath: _config.clashForMe.mmdbUrl,
+          savePath: "${Constants.homeDir.path}${Constants.mmdb}",
+          onReceiveProgress: (received, total) {
+            setState(() => _value = received / total);
+          },
+        )
         .then((value) {
-      setState(() => _value = 1);
-      Asuka.showSnackBar(const SnackBar(content: Text("下载完成，请重启应用以启用新的MMDB")));
-    }).catchError((e) {
-      setState(() => _value = -1);
-      Asuka.showSnackBar(SnackBar(content: Text(e.toString())));
-    });
+          setState(() => _value = 1);
+          Asuka.showSnackBar(
+            const SnackBar(content: Text("下载完成，请重启应用以启用新的MMDB")),
+          );
+        })
+        .catchError((e) {
+          setState(() => _value = -1);
+          Asuka.showSnackBar(SnackBar(content: Text(e.toString())));
+        });
   }
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
       tooltip: "更新MMDB",
-      icon: Builder(builder: (_) {
-        if (_value == 0) {
-          return const Icon(Icons.refresh_rounded);
-        } else if (_value == 1) {
-          return const Icon(Icons.done_outlined);
-        } else if (_value == -1) {
-          return const Icon(Icons.error_outlined);
-        }
-        return SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-            value: _value,
-            backgroundColor: Colors.black12,
-          ),
-        );
-      }),
+      icon: Builder(
+        builder: (_) {
+          if (_value == 0) {
+            return const Icon(Icons.refresh_rounded);
+          } else if (_value == 1) {
+            return const Icon(Icons.done_outlined);
+          } else if (_value == -1) {
+            return const Icon(Icons.error_outlined);
+          }
+          return SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              value: _value,
+              backgroundColor: Colors.black12,
+            ),
+          );
+        },
+      ),
       onPressed: () => downloadMMDB(),
     );
   }

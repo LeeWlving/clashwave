@@ -1,9 +1,6 @@
 import 'package:clash_for_flutter/app/enum/type_enum.dart';
-import 'package:dart_json_mapper/dart_json_mapper.dart';
 
 /// 配置基本参数
-@JsonSerializable()
-@Json(discriminatorProperty: 'type')
 abstract class ProfileBase {
   /// 保存的文件名
   String file;

@@ -25,31 +25,35 @@ class _HomePageState extends State<HomePage> {
   click() {
     setState(() => _loading = true);
     Future(() {
-      if (_config.tunIf) {
-        if (_core.tunEnable) {
-          return _core.closeTun();
-        } else {
-          return _core.openTun();
-        }
-      } else {
-        if (_config.systemProxy) {
-          return _config.closeProxy();
-        } else {
-          return _config.openProxy();
-        }
-      }
-    }).catchError((e) {
-      if (e is MessageException) {
-        Asuka.showSnackBar(SnackBar(content: Text(e.getMessage())));
-      } else {
-        Asuka.showSnackBar(const SnackBar(content: Text("发生未知错误")));
-      }
-    }).then((_) => setState(() => _loading = false));
+          if (_config.tunIf) {
+            if (_core.tunEnable) {
+              return _core.closeTun();
+            } else {
+              return _core.openTun();
+            }
+          } else {
+            if (_config.systemProxy) {
+              return _config.closeProxy();
+            } else {
+              return _config.openProxy();
+            }
+          }
+        })
+        .catchError((e) {
+          if (e is MessageException) {
+            Asuka.showSnackBar(SnackBar(content: Text(e.getMessage())));
+          } else {
+            Asuka.showSnackBar(const SnackBar(content: Text("发生未知错误")));
+          }
+        })
+        .then((_) => setState(() => _loading = false));
   }
 
   changeTun(bool? tunIf) {
     if (tunIf ?? false) {
-      Asuka.showSnackBar(const SnackBar(content: Text("请注意 tun 模式需要以管理员运行该软件，否则将无法启用代理")));
+      Asuka.showSnackBar(
+        const SnackBar(content: Text("请注意 tun 模式需要以管理员运行该软件，否则将无法启用代理")),
+      );
     }
     _config.setState(tunIf: tunIf);
   }
@@ -83,7 +87,9 @@ class _HomePageState extends State<HomePage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Text("Tun模式:"),
-          Observer(builder: (_) => Switch(value: _config.tunIf, onChanged: changeTun)),
+          Observer(
+            builder: (_) => Switch(value: _config.tunIf, onChanged: changeTun),
+          ),
         ],
       );
     }
@@ -93,13 +99,10 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const SysAppBar(title: Text("Clash for Flutter")),
+      appBar: const SysAppBar(title: Text("ClashWave")),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _openButton,
-          _switch,
-        ],
+        children: [_openButton, _switch],
       ),
     );
   }
@@ -190,9 +193,7 @@ class LoadingButton extends StatelessWidget {
       color: Colors.white54,
       child: SizedBox.fromSize(
         size: btnSize,
-        child: const Center(
-          child: CircularProgressIndicator(strokeWidth: 5),
-        ),
+        child: const Center(child: CircularProgressIndicator(strokeWidth: 5)),
       ),
     );
   }

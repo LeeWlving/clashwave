@@ -6,9 +6,7 @@ class Loading {
       builder: (_) {
         return Positioned.fill(
           child: Container(
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0),
-            ),
+            decoration: BoxDecoration(color: Colors.black.withOpacity(0)),
             child: Center(
               child: Container(
                 padding: const EdgeInsets.all(30),

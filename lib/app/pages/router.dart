@@ -38,7 +38,15 @@ class MenuRoute {
   }
 
   List<SideMenuItem> get sideMenuList {
-    return menuList.map((e) => SideMenuItem(title: e.title, icon: e.icon, onTap: (i, c) => c.changePage(i))).toList();
+    return menuList
+        .map(
+          (e) => SideMenuItem(
+            title: e.title,
+            icon: e.icon,
+            onTap: (i, c) => c.goTo(i),
+          ),
+        )
+        .toList();
   }
 
   getPath(int index) {

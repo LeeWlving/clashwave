@@ -5,15 +5,15 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   desktop_lifecycle
   local_notifier
-  protocol_handler
   proxy_manager
-  screen_retriever
+  screen_retriever_windows
   system_tray
   url_launcher_windows
   window_manager
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  jni
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)

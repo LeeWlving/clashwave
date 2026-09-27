@@ -2,7 +2,6 @@ import 'package:asuka/asuka.dart';
 import 'package:clash_for_flutter/app/component/sys_app_bar.dart';
 import 'package:clash_for_flutter/app/enum/type_enum.dart';
 import 'package:clash_for_flutter/app/source/core_config.dart';
-import 'package:clash_for_flutter/app/source/app_config.dart';
 import 'package:clash_for_flutter/app/source/logs_subscription.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -18,7 +17,6 @@ class LogsPage extends StatefulWidget {
 
 class _LogsPageState extends State<LogsPage> {
   final _controller = ScrollController();
-  final _config = Modular.get<AppConfig>();
   final _core = Modular.get<CoreConfig>();
   final _logs = Modular.get<LogsSubscription>();
   bool _showFab = true;
@@ -57,10 +55,12 @@ class _LogsPageState extends State<LogsPage> {
   }
 
   void _scrollListener() {
-    if (_controller.position.userScrollDirection == ScrollDirection.reverse && _showFab) {
+    if (_controller.position.userScrollDirection == ScrollDirection.reverse &&
+        _showFab) {
       setState(() => _showFab = false);
     }
-    if (_controller.position.userScrollDirection == ScrollDirection.forward && !_showFab) {
+    if (_controller.position.userScrollDirection == ScrollDirection.forward &&
+        !_showFab) {
       setState(() => _showFab = true);
     }
   }

@@ -1,6 +1,3 @@
-import 'package:dart_json_mapper/dart_json_mapper.dart';
-
-@JsonSerializable()
 class ConnectionShow {
   String id;
   String host;

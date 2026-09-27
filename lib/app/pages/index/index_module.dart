@@ -20,17 +20,27 @@ class IndexModule extends Module {
 
   @override
   void routes(r) {
-    r.child("/", child: (_) => const InitPage(), children: [
-      ChildRoute(
-        "/error",
-        child: (_) => const Scaffold(
-          appBar: SysAppBar(title: Text("Clash for Flutter")),
-          body: Center(child: Text("初始化失败")),
+    r.child(
+      "/",
+      child: (_) => const InitPage(),
+      children: [
+        ChildRoute(
+          "/error",
+          child: (_) => const Scaffold(
+            appBar: SysAppBar(title: Text("ClashWave")),
+            body: Center(child: Text("初始化失败")),
+          ),
         ),
-      ),
-    ]);
-    r.child("/tab", child: (_) {
-      return Constants.isDesktop ? const IndexDesktopPage() : const IndexMobilePage();
-    }, children: menu.routes);
+      ],
+    );
+    r.child(
+      "/tab",
+      child: (_) {
+        return Constants.isDesktop
+            ? const IndexDesktopPage()
+            : const IndexMobilePage();
+      },
+      children: menu.routes,
+    );
   }
 }

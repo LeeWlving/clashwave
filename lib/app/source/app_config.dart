@@ -22,7 +22,8 @@ abstract class AppConfigBase with Store {
   final _request = Modular.get<Request>();
   final _core = Modular.get<CoreConfig>();
 
-  final String profilesPath = "${Constants.homeDir.path}${Constants.profilesPath}";
+  final String profilesPath =
+      "${Constants.homeDir.path}${Constants.profilesPath}";
 
   @observable
   bool systemProxy = false;
@@ -67,19 +68,16 @@ abstract class AppConfigBase with Store {
       (ClashForMeConfig config) => config.saveFile(),
       delay: 1000,
     );
-    reaction(
-      (_) => selectedFile,
-      (String? file) {
-        if (file == null) {
-          return;
-        }
+    reaction((_) => selectedFile, (String? file) {
+      if (file == null) {
+        return;
+      }
 
-        if (!File(file).isAbsolute) {
-          file = "$profilesPath/$file";
-        }
-        _request.changeConfig(file);
-      },
-    );
+      if (!File(file).isAbsolute) {
+        file = "$profilesPath/$file";
+      }
+      _request.changeConfig(file);
+    });
   }
 
   /// 校验本地订阅文件与配置里对应
@@ -89,10 +87,15 @@ abstract class AppConfigBase with Store {
     var profilesDir = Directory(profilesPath);
     var fileList = <String>[];
     if (profilesDir.existsSync()) {
-      fileList = profilesDir.listSync().map((file) => basename(file.path)).toList();
+      fileList = profilesDir
+          .listSync()
+          .map((file) => basename(file.path))
+          .toList();
     }
 
-    List<ProfileBase> profiles = config.profiles.where((e) => fileList.contains(e.file)).toList();
+    List<ProfileBase> profiles = config.profiles
+        .where((e) => fileList.contains(e.file))
+        .toList();
     return config.copyWith(profiles: profiles);
   }
 

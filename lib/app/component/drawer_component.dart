@@ -27,11 +27,13 @@ class _AppDrawerState extends State<AppDrawer> {
   @override
   void initState() {
     super.initState();
-    _smc.addListener((p0) => widget.page.jumpToPage(p0));
+    _smc.addListener(() => widget.page.jumpToPage(_smc.currentIndex));
     _subscription = _request.traffic().listen((event) {
       setState(() => _speed = event ?? NetSpeed());
     });
-    _request.getClashVersion().then((value) => setState(() => _clashVersion = value ?? _clashVersion));
+    _request.getClashVersion().then(
+      (value) => setState(() => _clashVersion = value ?? _clashVersion),
+    );
   }
 
   @override
@@ -46,10 +48,10 @@ class _AppDrawerState extends State<AppDrawer> {
     var themeData = Theme.of(context);
     return SideMenu(
       controller: _smc,
-      style: SideMenuStyle(
-        openSideMenuWidth: 200,
-        unselectedTitleTextStyle: themeData.textTheme.labelLarge,
-        selectedTitleTextStyle: themeData.primaryTextTheme.labelLarge,
+      theme: SideMenuThemeData(
+        openWidth: 200,
+        unselectedTitleStyle: themeData.textTheme.labelLarge,
+        selectedTitleStyle: themeData.primaryTextTheme.labelLarge,
         selectedIconColor: themeData.primaryTextTheme.labelLarge!.color,
         selectedColor: themeData.primaryColor,
         hoverColor: themeData.hoverColor,
@@ -57,10 +59,7 @@ class _AppDrawerState extends State<AppDrawer> {
       title: Column(
         children: [
           ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxHeight: 200,
-              maxWidth: 200,
-            ),
+            constraints: const BoxConstraints(maxHeight: 200, maxWidth: 200),
             child: const Image(image: AssetImage("assets/darwer_img.jpg")),
           ),
           const Divider(indent: 8.0, endIndent: 8.0),

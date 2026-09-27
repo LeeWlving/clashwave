@@ -12,17 +12,17 @@ mixin _$CoreConfig on CoreConfigBase, Store {
   Computed<bool>? _$tunEnableComputed;
 
   @override
-  bool get tunEnable =>
-      (_$tunEnableComputed ??= Computed<bool>(() => super.tunEnable,
-              name: 'CoreConfigBase.tunEnable'))
-          .value;
+  bool get tunEnable => (_$tunEnableComputed ??= Computed<bool>(
+    () => super.tunEnable,
+    name: 'CoreConfigBase.tunEnable',
+  )).value;
   Computed<int>? _$mixedPortComputed;
 
   @override
-  int get mixedPort =>
-      (_$mixedPortComputed ??= Computed<int>(() => super.mixedPort,
-              name: 'CoreConfigBase.mixedPort'))
-          .value;
+  int get mixedPort => (_$mixedPortComputed ??= Computed<int>(
+    () => super.mixedPort,
+    name: 'CoreConfigBase.mixedPort',
+  )).value;
 
   late final _$clashAtom = Atom(name: 'CoreConfigBase.clash', context: context);
 
@@ -39,37 +39,44 @@ mixin _$CoreConfig on CoreConfigBase, Store {
     });
   }
 
-  late final _$asyncConfigAsyncAction =
-      AsyncAction('CoreConfigBase.asyncConfig', context: context);
+  late final _$asyncConfigAsyncAction = AsyncAction(
+    'CoreConfigBase.asyncConfig',
+    context: context,
+  );
 
   @override
   Future<void> asyncConfig() {
     return _$asyncConfigAsyncAction.run(() => super.asyncConfig());
   }
 
-  late final _$CoreConfigBaseActionController =
-      ActionController(name: 'CoreConfigBase', context: context);
+  late final _$CoreConfigBaseActionController = ActionController(
+    name: 'CoreConfigBase',
+    context: context,
+  );
 
   @override
-  dynamic setState(
-      {int? redirPort,
-      int? tproxyPort,
-      int? mixedPort,
-      bool? allowLan,
-      Mode? mode,
-      LogLevel? logLevel,
-      bool? ipv6}) {
+  dynamic setState({
+    int? redirPort,
+    int? tproxyPort,
+    int? mixedPort,
+    bool? allowLan,
+    Mode? mode,
+    LogLevel? logLevel,
+    bool? ipv6,
+  }) {
     final _$actionInfo = _$CoreConfigBaseActionController.startAction(
-        name: 'CoreConfigBase.setState');
+      name: 'CoreConfigBase.setState',
+    );
     try {
       return super.setState(
-          redirPort: redirPort,
-          tproxyPort: tproxyPort,
-          mixedPort: mixedPort,
-          allowLan: allowLan,
-          mode: mode,
-          logLevel: logLevel,
-          ipv6: ipv6);
+        redirPort: redirPort,
+        tproxyPort: tproxyPort,
+        mixedPort: mixedPort,
+        allowLan: allowLan,
+        mode: mode,
+        logLevel: logLevel,
+        ipv6: ipv6,
+      );
     } finally {
       _$CoreConfigBaseActionController.endAction(_$actionInfo);
     }

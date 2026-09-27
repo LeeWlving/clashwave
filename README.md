@@ -1,91 +1,152 @@
-# Clash for Flutter
+# ClashWave
 
-这是一个 **Clash** 的多平台客户端，支持 windows、linux、macos、android、~~ios~~。
+基于 Flutter 与 [Mihomo](https://github.com/MetaCubeX/mihomo) 的多平台代理客户端。
 
-> [使用说明](https://mapleafgo.github.io/clash-for-flutter)
+- 官网：[clashwave.wenyun.qzz.io](https://clashwave.wenyun.qzz.io)
+- Android application ID：`io.qzz.wenyun`
+- 当前版本：`2.0.0+20000`
+- Android 内核：Mihomo `1.19.31`
 
-## 界面
+> ClashWave 不提供代理节点或订阅服务。配置文件、订阅地址及代理服务器均由用户自行选择和管理。
 
-![主页](./docs/images/home_page.png)
+## 功能
 
-![代理页](./docs/images/proxy_page.png)
+- 从订阅 URL 或本地 YAML 文件导入配置
+- 查看并切换 Mihomo 代理组与节点
+- 延迟测试、活动连接和实时日志
+- 持久化应用设置与订阅信息
+- Android 系统 VPN、TUN 转发和前台服务通知
+- 支持 `clash://install-config` 深链导入
+- 支持 `https://clashwave.wenyun.qzz.io` Android App Links
+- 桌面端系统代理、托盘和开机启动能力
 
-![代理页](./docs/images/log_page.png)
+## 技术栈
 
-![连接页](./docs/images/connect_page.png)
+| 组件 | 版本或说明 |
+| --- | --- |
+| Flutter | 3.47.5 |
+| Dart | 3.13.4 |
+| Android | compile/target SDK 36、Java 17、AGP 9.1.0 |
+| Android NDK | 29.0.14033849 |
+| Mihomo | 1.19.31 |
+| Android bridge | `libmihomo-android` 0.3.5 |
+| Android ABI | `arm64-v8a`、`armeabi-v7a`、`x86_64` |
 
-![订阅页](./docs/images/profile_page.png)
+Android 端通过 `VpnService` 获取系统 VPN 授权，将 TUN 文件描述符交给 Mihomo 处理；
+应用界面通过 Mihomo 提供的 Clash-compatible REST API 管理配置、代理、连接和日志。
 
-![设置页](./docs/images/settings_page.png)
+## 平台状态
 
-## 开发、打包说明
+| 平台 | 状态 | 说明 |
+| --- | --- | --- |
+| Android | 主要支持 | 已集成 Mihomo、VpnService、TUN 与 App Links |
+| Windows | 支持 | 系统代理、托盘与桌面打包配置 |
+| Linux | 支持 | 系统代理与 AppImage 打包配置 |
+| macOS | 支持 | 桌面构建与 DMG 配置 |
+| iOS | 实验性 | 工程配置已迁移，发布前仍需在真实设备验证 |
 
-- 基础环境
+## 开发环境
 
-  `Flutter v3.16+`
+安装 Flutter 3.47.5，并确保 `flutter doctor` 中目标平台所需工具可用。Android 构建需要：
 
-  > 对目标平台时，需要参照 Flutter 官方文档进行对应平台的环境搭建。如 Android 开发时，需要 Android-SDK
+- Android SDK 36
+- JDK 17
+- Android NDK 29.0.14033849
 
-  > `Linux`环境下 [system_tray](https://github.com/antler119/system_tray) 需要 `libayatana-appindicator3-dev`
-  or `libappindicator3-dev`
+在需要本地代理的 Windows PowerShell 中执行：
 
-- 下载内核
+```powershell
+$env:HTTP_PROXY="http://127.0.0.1:7897"
+$env:HTTPS_PROXY="http://127.0.0.1:7897"
+$env:NO_PROXY="127.0.0.1,localhost"
 
-  从 https://github.com/mapleafgo/cff-core/releases/latest 下载对应平台需要的内核，
-  然后将解压出来的内核文件移动到对应的路径，各平台路径如下:
+flutter pub get
+flutter analyze --no-fatal-infos --no-fatal-warnings
+flutter test
+flutter run
+```
 
-  ```shell
-  # windows
-  windows/core/libclash.dll
-  # linux
-  linux/core/libclash.so
-  # android
-  android/app/libs/libclash.aar
-  # macos
-  macos/Frameworks/libclash.dylib
-  # ios
-  ios/Frameworks/libclash.xcframework
-  ```
+项目已为 Android Gradle 配置国内镜像。网络受限时可直接执行：
 
-  > 注意：解压出来的文件，仅保留所需的后缀名文件即可，且将其改名为路径的文件名
+```powershell
+cd android
+.\gradlew.bat app:bundleRelease --init-script gradle/init-mirrors.gradle
+```
 
-  > 内核是在 Clash v1.18.0 (非premium) 的基础上进行二次开发的，仅加入了 tun 模式（参照 Meta 进行）
+## Android 发布
 
-- 编译项目
+Google Play 使用 Android App Bundle。首次构建正式包之前，请先创建自己的上传密钥：
 
-  ```shell
-  # 1. 获取项目依赖
-  $ flutter pub get
-  # 2. 生成 .g.dart 文件
-  $ dart run build_runner build --delete-conflicting-outputs
+```powershell
+keytool -genkeypair -v `
+  -keystore upload-keystore.jks `
+  -keyalg RSA `
+  -keysize 2048 `
+  -validity 10000 `
+  -alias upload
+```
 
-  # 3. 运行项目 (linux)
-  $ flutter run -d linux
-  # 3. 运行项目 (windows)
-  $ flutter run -d windows
-  # 3. 运行项目 (android)
-  $ flutter run -d android
-  # 3. 运行项目 (macos)
-  $ flutter run -d macos
-  ```
+复制 `android/key.properties.example` 为 `android/key.properties`，填写密钥路径及密码，然后执行：
 
-- 打包项目
+```powershell
+flutter build appbundle --release
+```
 
-  该项目用 [flutter_distributor](https://distributor.leanflutter.org/) 打包，打包步骤看 `flutter_distributor` 的官方文档吧
+AAB 输出位置：
 
-## 主要技术
+```text
+build/app/outputs/bundle/release/app-release.aab
+```
 
-- [Go](https://go.dev/)
-- [Clash](https://github.com/Dreamacro/clash)
+`android/key.properties`、JKS/keystore、`build/`、`.dart_tool/` 及本地迁移目录均已加入
+`.gitignore`，不得提交到版本库。
+
+完整的签名、VPN/前台服务申报、Data safety 和上线检查参见
+[Google Play 发布清单](docs/google-play-release.md)。
+
+## App Links
+
+HTTPS App Links 需要在网站部署：
+
+```text
+https://clashwave.wenyun.qzz.io/.well-known/assetlinks.json
+```
+
+其中必须包含正式发布证书的 SHA-256 指纹和 application ID `io.qzz.wenyun`，否则 Android
+无法自动验证该域名。自定义 `clash://` 链接无需网站验证。
+
+## 项目结构
+
+```text
+android/                 Android VpnService、Mihomo bridge 与构建配置
+lib/app/                 页面、模型、状态与 Clash-compatible API
+lib/app/utils/app_json.dart
+                         API 与持久化数据的显式 JSON 编解码
+lib/core_control.dart    Flutter 与原生 Mihomo 的 MethodChannel
+docs/                    使用说明与 Google Play 发布文档
+test/                    配置及 JSON 兼容测试
+```
+
+## 隐私与开源许可
+
+- 隐私政策：[PRIVACY_POLICY.md](PRIVACY_POLICY.md)
+- 第三方许可：[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+
+Mihomo 与 Android bridge 使用 GPL-3.0 许可证。分发 APK/AAB 时，发布者需要同时履行 GPL
+规定的源码、许可证和构建信息提供义务。仓库中集成的 AAR 版本及 SHA-256 已记录在第三方许可文件中。
+
+## 截图
+
+| 主页 | 代理节点 |
+| --- | --- |
+| ![主页](docs/images/home_page.png) | ![代理节点](docs/images/proxy_page.png) |
+
+| 订阅 | 活动连接 |
+| --- | --- |
+| ![订阅](docs/images/profile_page.png) | ![活动连接](docs/images/connect_page.png) |
+
+## 致谢
+
+- [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo)
+- [oviron/libmihomo-android](https://github.com/oviron/libmihomo-android)
 - [Flutter](https://flutter.dev)
-- [system_tray](https://github.com/antler119/system_tray)
-- [window_manager](https://github.com/leanflutter/window_manager)
-- [proxy_manager](https://github.com/Kingtous/proxy_manager)
-- [flutter_modular](https://github.com/Flutterando/modular)
-- [dio](https://github.com/cfug/dio)
-- [flutter_distributor](https://distributor.leanflutter.org/)
-
-## 写在后面
-
-自 1.0.0 版本开始，本软件全面从之前的 Go-Flutter 迁移到了官方 Flutter
-版本。迁移中部分参考了 [Fclash](https://github.com/Kingtous/Fclash) 非常感谢！
