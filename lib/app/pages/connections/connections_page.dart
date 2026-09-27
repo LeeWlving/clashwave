@@ -9,7 +9,6 @@ import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:material_ui/material_ui.dart' as mui show DataCell;
 import 'package:timeago/timeago.dart' as timeago;
 
 class ConnectionsPage extends StatefulWidget {
@@ -108,7 +107,7 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
     return result;
   }
 
-  detail(int index) {
+  void detail(int index) {
     showDialog(
       context: context,
       builder: (cxt) {
@@ -345,8 +344,8 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
           Theme(
             data: ThemeData(
               scrollbarTheme: ScrollbarThemeData(
-                thumbVisibility: MaterialStateProperty.all(true),
-                thumbColor: MaterialStateProperty.all<Color>(Colors.black26),
+                thumbVisibility: WidgetStateProperty.all(true),
+                thumbColor: WidgetStateProperty.all<Color>(Colors.black26),
               ),
             ),
             child: DataTable2(
@@ -375,29 +374,29 @@ class _ConnectionsPageState extends State<ConnectionsPage> {
                 return DataRow2(
                   onTap: () => detail(index),
                   cells: [
-                    mui.DataCell(Text(c.host)),
-                    mui.DataCell(Text(c.network)),
-                    mui.DataCell(Text(c.type)),
-                    mui.DataCell(
+                    DataCell(Text(c.host)),
+                    DataCell(Text(c.network)),
+                    DataCell(Text(c.type)),
+                    DataCell(
                       Text(
                         c.chains,
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
                     ),
-                    mui.DataCell(
+                    DataCell(
                       Text(
                         c.rule,
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
                     ),
-                    mui.DataCell(Text(c.process)),
-                    mui.DataCell(Text(c.speed)),
-                    mui.DataCell(Text(c.upload)),
-                    mui.DataCell(Text(c.download)),
-                    mui.DataCell(Text(c.sourceIP)),
-                    mui.DataCell(Text(c.time)),
+                    DataCell(Text(c.process)),
+                    DataCell(Text(c.speed)),
+                    DataCell(Text(c.upload)),
+                    DataCell(Text(c.download)),
+                    DataCell(Text(c.sourceIP)),
+                    DataCell(Text(c.time)),
                   ],
                 );
               }),

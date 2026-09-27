@@ -1,10 +1,11 @@
 /// MessageException 带消息体的异常
 class MessageException implements Exception {
-  late String _message;
+  final String _message;
 
-  MessageException(String message) {
-    _message = message;
-  }
+  MessageException(this._message);
 
-  getMessage() => _message;
+  String getMessage() => _message;
+
+  @override
+  String toString() => _message;
 }

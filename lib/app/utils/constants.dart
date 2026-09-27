@@ -36,6 +36,9 @@ class Constants {
   /// mmdb 更新保存路径
   static const mmdb_new = "/Country_new.mmdb";
 
+  /// Mihomo GeoSite 规则数据库保存路径
+  static const geosite = "/GeoSite.dat";
+
   /// localhost
   static const localhost = "127.0.0.1";
 
@@ -47,6 +50,9 @@ class Constants {
 class DefaultConfigValue {
   static const mmdbUrl =
       "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb";
+
+  static const geositeUrl =
+      "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat";
 
   static const delayTestUrl = "http://www.gstatic.com/generate_204";
 }

@@ -26,6 +26,7 @@ class _InitPageState extends State<InitPage> {
   final _logs = Modular.get<LogsSubscription>();
   double _loadingProgress = 0;
   bool _isLoading = false;
+  String _loadingLabel = '正在准备 Mihomo 数据文件';
 
   @override
   void initState() {
@@ -33,8 +34,8 @@ class _InitPageState extends State<InitPage> {
     super.initState();
   }
 
-  _init() {
-    return Future(() async {
+  Future<void> _init() async {
+    await Future(() async {
           if (!await _request.hello().then(
             (res) => res.statusCode == HttpStatus.ok,
           )) {
@@ -44,27 +45,26 @@ class _InitPageState extends State<InitPage> {
           _core.init();
           await _config.init();
 
-          var m = File("${Constants.homeDir.path}${Constants.mmdb}");
-          if (!(await CoreControl.verifyMMDB(m.path) ?? false)) {
-            setState(() => _isLoading = true);
-            try {
-              await _request.downFile(
-                urlPath: _config.clashForMe.mmdbUrl,
-                savePath: m.path,
-                onReceiveProgress: (received, total) {
-                  if (mounted && total > 0) {
-                    setState(() => _loadingProgress = received / total);
-                  }
-                },
-              );
-            } catch (error) {
-              Asuka.showSnackBar(
-                SnackBar(content: Text('Country.mmdb 下载失败，可稍后重试：$error')),
-              );
-            } finally {
-              if (mounted) setState(() => _isLoading = false);
-            }
-          }
+          final mmdb = File("${Constants.homeDir.path}${Constants.mmdb}");
+          await _ensureCoreData(
+            file: mmdb,
+            url: _config.clashForMe.mmdbUrl,
+            label: 'Country.mmdb',
+            isValid: () async =>
+                await CoreControl.verifyMMDB(mmdb.path) ?? false,
+          );
+
+          // Modern Mihomo configurations may reference GEOSITE in rules or
+          // DNS policies. Pre-downloading it avoids a configuration reload 400
+          // when the core cannot reach GitHub directly during initialization.
+          final geosite = File("${Constants.homeDir.path}${Constants.geosite}");
+          await _ensureCoreData(
+            file: geosite,
+            url: DefaultConfigValue.geositeUrl,
+            label: 'GeoSite.dat',
+            isValid: () async =>
+                geosite.existsSync() && geosite.lengthSync() > 0,
+          );
 
           await _core.asyncConfig();
 
@@ -73,9 +73,15 @@ class _InitPageState extends State<InitPage> {
             return;
           }
 
-          // 同步当前 profile
-          if (await _config.asyncProfile()) {
-            return;
+          // A broken subscription must not prevent the application from
+          // opening. Keep the bootstrap config active so it can be updated or
+          // replaced from the profile page.
+          try {
+            await _config.asyncProfile();
+          } catch (error) {
+            Asuka.showSnackBar(
+              SnackBar(content: Text('订阅配置加载失败，请更新或更换订阅：$error')),
+            );
           }
         })
         .then((value) async {
@@ -89,18 +95,52 @@ class _InitPageState extends State<InitPage> {
         });
   }
 
+  Future<void> _ensureCoreData({
+    required File file,
+    required String url,
+    required String label,
+    required Future<bool> Function() isValid,
+  }) async {
+    if (await isValid()) return;
+
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _loadingProgress = 0;
+        _loadingLabel = '正在下载 $label';
+      });
+    }
+
+    try {
+      await _request.downFile(
+        urlPath: url,
+        savePath: file.path,
+        onReceiveProgress: (received, total) {
+          if (mounted && total > 0) {
+            setState(() => _loadingProgress = received / total);
+          }
+        },
+      );
+    } catch (error) {
+      Asuka.showSnackBar(SnackBar(content: Text('$label 下载失败，可稍后重试：$error')));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return _isLoading
-        ? LoadingWidget(value: _loadingProgress)
+        ? LoadingWidget(value: _loadingProgress, label: _loadingLabel)
         : const RouterOutlet();
   }
 }
 
 class LoadingWidget extends StatelessWidget {
-  const LoadingWidget({super.key, required this.value});
+  const LoadingWidget({super.key, required this.value, required this.label});
 
   final double value;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -122,7 +162,7 @@ class LoadingWidget extends StatelessWidget {
                   minHeight: 10,
                 ),
               ),
-              const Text("正在初始下载 Country.mmdb 文件"),
+              Text(label),
             ],
           ),
         ),

@@ -3,8 +3,8 @@
 基于 Flutter 与 [Mihomo](https://github.com/MetaCubeX/mihomo) 的多平台代理客户端。
 
 - 官网：[clashwave.wenyun.qzz.io](https://clashwave.wenyun.qzz.io)
-- Android application ID：`io.qzz.wenyun`
-- 当前版本：`2.0.0+20000`
+- Android application ID：`org.eu.liwenyun`
+- 当前版本：`2.0.0+4`
 - Android 内核：Mihomo `1.19.31`
 
 > ClashWave 不提供代理节点或订阅服务。配置文件、订阅地址及代理服务器均由用户自行选择和管理。
@@ -112,7 +112,7 @@ HTTPS App Links 需要在网站部署：
 https://clashwave.wenyun.qzz.io/.well-known/assetlinks.json
 ```
 
-其中必须包含正式发布证书的 SHA-256 指纹和 application ID `io.qzz.wenyun`，否则 Android
+其中必须包含正式发布证书的 SHA-256 指纹和 application ID `org.eu.liwenyun`，否则 Android
 无法自动验证该域名。自定义 `clash://` 链接无需网站验证。
 
 ## 项目结构

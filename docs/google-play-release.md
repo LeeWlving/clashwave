@@ -3,10 +3,10 @@
 ## 1. 应用身份
 
 - 应用名称：ClashWave
-- Android application ID：`io.qzz.wenyun`
+- Android application ID：`org.eu.liwenyun`
 - 官网：`https://clashwave.wenyun.qzz.io`
 - 隐私政策建议发布地址：`https://clashwave.wenyun.qzz.io/privacy`
-- 当前版本：`2.0.0 (20000)`
+- 当前版本：`2.0.0 (4)`
 
 首次上传后不要再修改 application ID。后续每次发布必须增加 `versionCode`。
 

@@ -28,10 +28,59 @@ class Request {
 
   final _dio = Dio(
     BaseOptions(
-      headers: {'User-Agent': 'ClashWave/2.0'},
+      // Subscription services use this header to choose the output format.
+      // `clash.meta` requests a complete Mihomo-compatible YAML file.
+      headers: {'User-Agent': 'clash.meta'},
       connectTimeout: const Duration(seconds: 3),
     ),
   );
+
+  Request() {
+    _installReadableErrors(_clashDio, serviceName: 'Mihomo');
+    _installReadableErrors(_dio, serviceName: '网络请求');
+  }
+
+  static void _installReadableErrors(Dio dio, {required String serviceName}) {
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onError: (error, handler) {
+          handler.reject(
+            error.copyWith(message: _readableError(error, serviceName)),
+          );
+        },
+      ),
+    );
+  }
+
+  static String _readableError(DioException error, String serviceName) {
+    final data = error.response?.data;
+    String? detail;
+    if (data is Map) {
+      detail = data['message']?.toString() ?? data['error']?.toString();
+    } else if (data is String && data.trim().isNotEmpty) {
+      detail = data.trim();
+    }
+
+    if (detail != null && detail.isNotEmpty) {
+      return '$serviceName：$detail';
+    }
+
+    final statusCode = error.response?.statusCode;
+    if (statusCode != null) {
+      return '$serviceName 请求失败（HTTP $statusCode）';
+    }
+
+    return switch (error.type) {
+      DioExceptionType.connectionTimeout => '$serviceName 连接超时',
+      DioExceptionType.sendTimeout => '$serviceName 发送超时',
+      DioExceptionType.receiveTimeout => '$serviceName 响应超时',
+      DioExceptionType.connectionError => '$serviceName 无法连接',
+      DioExceptionType.cancel => '$serviceName 请求已取消',
+      _ => '$serviceName 请求失败：${error.error ?? error.message}',
+    };
+  }
+
+  static String _pathSegment(String value) => Uri.encodeComponent(value);
 
   Future<Response> downFile({
     required String urlPath,
@@ -105,7 +154,9 @@ class Request {
 
   /// 获取单个代理
   Future<dynamic> oneProxies(String name) async {
-    var res = await _clashDio.get<Map<String, dynamic>>("/proxies/$name");
+    var res = await _clashDio.get<Map<String, dynamic>>(
+      "/proxies/${_pathSegment(name)}",
+    );
     var data = res.data?.containsKey("now");
     return data == true
         ? AppJson.fromMap<Group>(res.data)
@@ -116,7 +167,7 @@ class Request {
   Future<int?> getProxyDelay(String name, String url) {
     return _clashDio
         .get<Map>(
-          "/proxies/$name/delay",
+          "/proxies/${_pathSegment(name)}/delay",
           queryParameters: {"timeout": 2900, "url": url},
         )
         .then((res) => res.data?["delay"]);
@@ -128,7 +179,7 @@ class Request {
     required String select,
   }) async {
     var resp = await _clashDio.put<void>(
-      "/proxies/$name",
+      "/proxies/${_pathSegment(name)}",
       data: {"name": select},
     );
     return resp.statusCode == HttpStatus.noContent;
@@ -200,12 +251,14 @@ class Request {
   }
 
   Future<bool> closeConnections(String id) async {
-    var resp = await _clashDio.delete<ResponseBody>("/connections/$id");
+    var resp = await _clashDio.delete<ResponseBody>(
+      "/connections/${_pathSegment(id)}",
+    );
     return resp.statusCode == HttpStatus.noContent;
   }
 
   Future<String> latest() async {
-    var resp = await Dio().get<Map<String, dynamic>>(Constants.releaseUrl);
+    var resp = await _dio.get<Map<String, dynamic>>(Constants.releaseUrl);
     if (resp.data?.containsKey("tag_name") ?? false) {
       return resp.data!["tag_name"];
     } else {

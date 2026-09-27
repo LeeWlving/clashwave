@@ -15,6 +15,7 @@ class _AppWidgetState extends State<AppWidget> {
   Widget build(BuildContext context) {
     var app = MaterialApp.router(
       title: "ClashWave",
+      debugShowCheckedModeBanner: false,
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       supportedLocales: const [
         Locale.fromSubtags(
@@ -28,7 +29,10 @@ class _AppWidgetState extends State<AppWidget> {
         scriptCode: 'Hans',
         countryCode: "CN",
       ),
-      theme: ThemeData(useMaterial3: true, primarySwatch: Colors.blue),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: const Color(0xFF49616D),
+      ),
       routerConfig: Modular.routerConfig,
       builder: Asuka.builder,
       // navigatorObservers: [Asuka.asukaHeroController],

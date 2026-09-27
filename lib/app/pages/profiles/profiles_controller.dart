@@ -63,12 +63,17 @@ class ProfileController {
   }
 
   /// 选择某源
-  select(String file) {
-    _config.setState(selectedFile: file);
+  Future<void> select(String file) async {
+    try {
+      await _request.changeConfig("${_config.profilesPath}/$file");
+      _config.setState(selectedFile: file);
+    } catch (error) {
+      Asuka.showSnackBar(SnackBar(content: Text('无法加载该订阅：$error')));
+    }
   }
 
   /// 编辑源
-  edit(ProfileBase profile) {
+  void edit(ProfileBase profile) {
     var tempList = _config.profiles.toList();
     var i = tempList.indexWhere((element) => element.file == profile.file);
     tempList[i] = profile;

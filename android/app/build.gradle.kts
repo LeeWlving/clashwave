@@ -8,7 +8,21 @@ plugins {
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
-    keystorePropertiesFile.inputStream().use(keystoreProperties::load)
+    // Java Properties treats Windows paths such as C:\Users as malformed
+    // Unicode escapes. Signing files are simple key=value pairs, so preserve
+    // backslashes and parse them without Properties' escape processing.
+    keystorePropertiesFile.forEachLine { line ->
+        val trimmed = line.trim()
+        if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
+            val separator = trimmed.indexOf('=')
+            if (separator > 0) {
+                keystoreProperties.setProperty(
+                    trimmed.substring(0, separator).trim(),
+                    trimmed.substring(separator + 1).trim(),
+                )
+            }
+        }
+    }
 }
 
 android {
@@ -22,7 +36,9 @@ android {
     }
 
     defaultConfig {
-        applicationId = "io.qzz.wenyun"
+        // Keep the original Play Store identity so this remains an update of
+        // the existing app rather than a new listing.
+        applicationId = "org.eu.liwenyun"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

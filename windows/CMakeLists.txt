@@ -4,6 +4,9 @@ project(clash_for_flutter LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
+# Keep the internal target name for Flutter plugin compatibility. The shipped
+# executable is renamed to ClashWave during packaging, while its metadata and
+# window title already use the public product name.
 set(BINARY_NAME "clash_for_flutter")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
@@ -80,7 +83,7 @@ install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}
 install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
 
-install(FILES "core/libclash.dll" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+install(FILES "core/mihomo.exe" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
 
 if(PLUGIN_BUNDLED_LIBRARIES)

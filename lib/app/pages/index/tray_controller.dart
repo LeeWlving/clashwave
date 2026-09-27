@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:clash_for_flutter/app/enum/type_enum.dart';
 import 'package:clash_for_flutter/app/source/app_config.dart';
 import 'package:clash_for_flutter/app/source/core_config.dart';
+import 'package:clash_for_flutter/core_control.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:mobx/mobx.dart';
 import 'package:system_tray/system_tray.dart';
@@ -85,6 +86,7 @@ class TrayController {
         label: "退出",
         onClicked: (_) async {
           await _config.closeProxy();
+          await CoreControl.shutdown();
           windowManager.close().then((_) => windowManager.destroy());
         },
       ),
