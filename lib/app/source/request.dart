@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:clash_for_flutter/app/bean/config_bean.dart';
+import 'package:clash_for_flutter/app/bean/clash_for_me_config_bean.dart';
 import 'package:clash_for_flutter/app/bean/connection_bean.dart';
 import 'package:clash_for_flutter/app/bean/group_bean.dart';
 import 'package:clash_for_flutter/app/bean/log_bean.dart';
@@ -15,6 +16,8 @@ import 'package:clash_for_flutter/app/enum/type_enum.dart';
 import 'package:clash_for_flutter/app/utils/constants.dart';
 import 'package:clash_for_flutter/app/utils/app_json.dart';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
+import 'package:clash_for_flutter/app/utils/proxy_port.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class Request {
@@ -36,6 +39,10 @@ class Request {
   );
 
   Request() {
+    // The local controller must never be sent through an environment proxy.
+    _clashDio.httpClientAdapter = IOHttpClientAdapter(
+      createHttpClient: () => HttpClient()..findProxy = (_) => 'DIRECT',
+    );
     _installReadableErrors(_clashDio, serviceName: 'Mihomo');
     _installReadableErrors(_dio, serviceName: '网络请求');
   }
@@ -86,11 +93,13 @@ class Request {
     required String urlPath,
     required String savePath,
     void Function(int, int)? onReceiveProgress,
+    CancelToken? cancelToken,
   }) {
     return _dio.download(
       urlPath,
       savePath,
       onReceiveProgress: onReceiveProgress,
+      cancelToken: cancelToken,
     );
   }
 
@@ -193,12 +202,50 @@ class Request {
 
   /// 切换配置文件 [path] 必须为绝对路径
   Future<bool> changeConfig(String path) async {
+    // Subscription files often omit listeners; keep the application's port.
+    final current = await getConfigs();
+    final preferred = _validMixedPort(current?.mixedPort);
+    final port = current?.mixedPort == preferred
+        ? preferred
+        : await ProxyPort.available(preferred);
+    final payload = Config.prepareProfile(
+      await File(path).readAsString(),
+      mixedPort: port,
+      geoxUrls: ClashForMeConfig.formFile().geoxUrls,
+    );
     var resp = await _clashDio.put(
       "/configs",
       queryParameters: {"force": false},
-      data: {"path": path},
+      data: {"payload": payload},
     );
-    return resp.statusCode == HttpStatus.noContent;
+    if (resp.statusCode != HttpStatus.noContent) return false;
+    if (!await patchConfigs(Config(mixedPort: port))) return false;
+    await Config(mixedPort: port).saveFile();
+    return true;
+  }
+
+  static int _validMixedPort(int? port) =>
+      port != null && port > 0 && port <= 65535 ? port : 7890;
+
+  /// Read live state rather than trusting a stale UI snapshot after a reload.
+  Future<int> ensureMixedPort() async {
+    final current = await getConfigs();
+    if (current == null) throw StateError('无法读取内核代理端口');
+    final preferred = _validMixedPort(current.mixedPort);
+    final port = current.mixedPort == preferred
+        ? preferred
+        : await ProxyPort.available(preferred);
+    if (current.mixedPort != port) {
+      if (!await patchConfigs(Config(mixedPort: port))) {
+        throw StateError('无法设置内核代理端口 $port');
+      }
+      final updated = await getConfigs();
+      if (updated?.mixedPort != port) {
+        throw StateError('内核代理端口 $port 未生效');
+      }
+    }
+    await Config(mixedPort: port).saveFile();
+    return port;
   }
 
   /// 增量修改配置

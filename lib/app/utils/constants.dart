@@ -48,11 +48,12 @@ class Constants {
 
 /// 默认配置值
 class DefaultConfigValue {
-  static const mmdbUrl =
-      "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb";
+  // Mirror listed in Mihomo's official geox-url documentation.
+  static const geodataBaseUrl =
+      'https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release';
+  static const mmdbUrl = '$geodataBaseUrl/country.mmdb';
 
-  static const geositeUrl =
-      "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat";
+  static const geositeUrl = '$geodataBaseUrl/geosite.dat';
 
   static const delayTestUrl = "http://www.gstatic.com/generate_204";
 }

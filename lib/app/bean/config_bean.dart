@@ -4,6 +4,7 @@ import 'package:clash_for_flutter/app/bean/tun_bean.dart';
 import 'package:clash_for_flutter/app/enum/type_enum.dart';
 import 'package:clash_for_flutter/app/utils/constants.dart';
 import 'package:yaml_edit/yaml_edit.dart';
+import 'package:clash_for_flutter/app/utils/proxy_port.dart';
 
 class Config {
   static final String _path =
@@ -45,10 +46,35 @@ class Config {
 
   /// Keeps Mihomo's Clash-compatible controller on the random loopback port
   /// selected for this app launch, without changing the user's other options.
-  static Future<void> ensureController() async {
+  static Future<void> ensureController({
+    Map<String, String>? geoxUrls,
+    bool chooseAvailablePort = false,
+  }) async {
     final yaml = _loadYaml();
     yaml.update(["external-controller"], Constants.rustAddr);
+    final root = yaml.parseAt([]).value;
+    final port = root is Map ? root['mixed-port'] : null;
+    if (port is! int || port < 1 || port > 65535) {
+      yaml.update(['mixed-port'], 7890);
+    }
+    if (chooseAvailablePort) {
+      final preferred = yaml.parseAt(['mixed-port']).value as int;
+      yaml.update(['mixed-port'], await ProxyPort.available(preferred));
+    }
+    if (geoxUrls != null) yaml.update(['geox-url'], geoxUrls);
     await _saveYaml(yaml);
+  }
+
+  static String prepareProfile(
+    String source, {
+    required int mixedPort,
+    required Map<String, String> geoxUrls,
+  }) {
+    final yaml = YamlEditor(source);
+    yaml.update(['mixed-port'], mixedPort);
+    yaml.update(['external-controller'], Constants.rustAddr);
+    yaml.update(['geox-url'], geoxUrls);
+    return yaml.toString();
   }
 
   static YamlEditor _loadYaml() {

@@ -1,0 +1,9 @@
+Bundled GEO databases
+Source repository: https://github.com/MetaCubeX/meta-rules-dat
+Download mirror: https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release
+Downloaded: 2026-09-27
+Used locally before the Mihomo core starts; existing nonempty databases are preserved.
+
+Country.mmdb: 7705141 bytes; SHA-256 f35228dd74b70ae0ac72dcd2b86d03e0510264e20a0ec21ebb6aa32fa4f85c38
+GeoSite.dat: 4253214 bytes; SHA-256 9fc41342298b8e9794ff40b3d3045809a0fd0e61162a9718226c593fc30644d6
+GeoIP.dat: 16635240 bytes; SHA-256 3cf2236c19063c1c80803368cca5ff589c5033129fdf9ba154230c689b81fc2a

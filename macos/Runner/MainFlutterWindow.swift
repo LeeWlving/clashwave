@@ -10,6 +10,10 @@ class MainFlutterWindow: NSWindow {
     self.setFrame(windowFrame, display: true)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+    AppDelegate.coreLifecycleChannel = FlutterMethodChannel(
+      name: "io.qzz.wenyun/core-lifecycle",
+      binaryMessenger: flutterViewController.engine.binaryMessenger
+    )
 
     super.awakeFromNib()
   }

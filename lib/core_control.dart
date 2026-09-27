@@ -8,6 +8,7 @@ import 'package:path/path.dart' as path;
 class CoreControl {
   static const MethodChannel _channel = MethodChannel('io.qzz.wenyun/mihomo');
   static final _protocolUrls = StreamController<String>.broadcast();
+  static const _lifecycle = MethodChannel('io.qzz.wenyun/core-lifecycle');
   static Directory? _desktopHomeDir;
   static Process? _desktopCore;
 
@@ -15,6 +16,11 @@ class CoreControl {
 
   // 初始化clash
   static void init() {
+    if (Platform.isMacOS) {
+      _lifecycle.setMethodCallHandler((call) async {
+        if (call.method == 'shutdown') await shutdown();
+      });
+    }
     if (!Constants.isDesktop) {
       _channel.setMethodCallHandler((call) async {
         if (call.method == 'protocolUrl' && call.arguments is String) {

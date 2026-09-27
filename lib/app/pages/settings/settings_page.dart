@@ -262,6 +262,18 @@ class _SettingsPageState extends State<SettingsPage> {
                 title: const Text('其他设置'),
                 tiles: <SettingsTile>[
                   SettingsTile.navigation(
+                    title: const Text('规则数据下载镜像'),
+                    value: Text(_config.clashForMe.geodataBaseUrl),
+                    onPressed: (_) {
+                      setValue(
+                        title: '规则数据下载目录（重启或重载订阅后生效）',
+                        decoration: DefaultConfigValue.geodataBaseUrl,
+                        initialValue: _config.clashForMe.geodataBaseUrl,
+                        onOk: _config.setGeodataBaseUrl,
+                      );
+                    },
+                  ),
+                  SettingsTile.navigation(
                     title: const Row(
                       children: [Text("MMDB Url"), MmdbRefreshButton()],
                     ),

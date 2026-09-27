@@ -123,34 +123,58 @@ abstract class AppConfigBase with Store {
     return _request.changeConfig("$profilesPath/$selectedFile");
   }
 
+  Future<void> setGeodataBaseUrl(String value) async {
+    final base = value.trim().replaceFirst(RegExp(r'/+$'), '');
+    final uri = Uri.tryParse(base);
+    if (uri == null ||
+        !uri.hasAuthority ||
+        (uri.scheme != 'https' && uri.scheme != 'http')) {
+      throw MessageException('请输入完整的 HTTP 或 HTTPS 下载目录地址');
+    }
+    runInAction(() {
+      clashForMe = clashForMe.copyWith(
+        geodataBaseUrl: base,
+        mmdbUrl: '$base/country.mmdb',
+      );
+    });
+    await clashForMe.saveFile();
+  }
+
   /// 打开代理
   @action
   Future<void> openProxy() async {
     if (Constants.isDesktop) {
-      int port = _core.mixedPort;
-      if (port != 0) {
-        if (!Platform.isWindows) {
-          await proxyManager.setAsSystemProxy(
-            ProxyTypes.socks,
-            Constants.localhost,
-            port,
-          );
-        } else {
-          await proxyManager.setAsSystemProxy(
-            ProxyTypes.http,
-            Constants.localhost,
-            port,
-          );
-          await proxyManager.setAsSystemProxy(
-            ProxyTypes.https,
-            Constants.localhost,
-            port,
-          );
-        }
-        systemProxy = true;
-      } else {
-        throw MessageException("未设置代理端口");
+      final port = await _request.ensureMixedPort();
+      await _core.asyncConfig();
+      try {
+        final socket = await Socket.connect(
+          Constants.localhost,
+          port,
+          timeout: const Duration(seconds: 2),
+        );
+        socket.destroy();
+      } on SocketException {
+        throw MessageException('内核未监听代理端口 $port，请检查端口是否被占用');
       }
+      if (!Platform.isWindows) {
+        await proxyManager.setAsSystemProxy(
+          ProxyTypes.socks,
+          Constants.localhost,
+          port,
+        );
+      } else {
+        await proxyManager.setAsSystemProxy(
+          ProxyTypes.http,
+          Constants.localhost,
+          port,
+        );
+        await proxyManager.setAsSystemProxy(
+          ProxyTypes.https,
+          Constants.localhost,
+          port,
+        );
+      }
+      systemProxy = true;
     }
   }
 

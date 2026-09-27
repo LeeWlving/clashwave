@@ -25,13 +25,6 @@ abstract class CoreConfigBase with Store {
   @computed
   int get mixedPort => clash.mixedPort ?? 0;
 
-  void init() {
-    reaction((_) => clash, (Config config) {
-      config.saveFile();
-      _request.patchConfigs(config);
-    }, delay: 1000);
-  }
-
   @action
   setState({
     int? redirPort,
@@ -41,8 +34,8 @@ abstract class CoreConfigBase with Store {
     Mode? mode,
     LogLevel? logLevel,
     bool? ipv6,
-  }) {
-    clash = clash.copyWith(
+  }) async {
+    final updated = clash.copyWith(
       redirPort: redirPort,
       tproxyPort: tproxyPort,
       mixedPort: mixedPort,
@@ -51,6 +44,10 @@ abstract class CoreConfigBase with Store {
       logLevel: logLevel,
       ipv6: ipv6,
     );
+    // Only explicit edits write configuration; reading core state is read-only.
+    await _request.patchConfigs(updated);
+    await updated.saveFile();
+    clash = updated;
   }
 
   @action

@@ -37,6 +37,21 @@ Android 端通过 `VpnService` 获取系统 VPN 授权，将 TUN 文件描述符
 
 ## 平台状态
 
+macOS 本地构建（先准备 Mihomo 双架构内核，再打包）：
+
+```bash
+sh macos/prepare_core.sh
+flutter build macos --release
+```
+
+应用位于 `build/macos/Build/Products/Release/ClashWave.app`。构建会将内核放入
+`Contents/MacOS/mihomo`；缺少内核时会直接终止构建，避免生成无法启动的应用。
+
+GeoIP（MMDB / DAT）和 GeoSite 数据随应用打包，首次启动会先释放缺失的数据文件，
+无需联网下载，已有数据不会被覆盖。设置中的“规则数据下载镜像”用于后续更新和
+内核缺失数据时的下载，默认采用 Mihomo 文档列出的 jsDelivr 镜像。
+切换订阅会保留应用的代理端口与规则数据下载地址。
+
 | 平台 | 状态 | 说明 |
 | --- | --- | --- |
 | Android | 主要支持 | 已集成 Mihomo、VpnService、TUN 与 App Links |

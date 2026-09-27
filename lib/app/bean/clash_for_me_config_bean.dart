@@ -19,6 +19,16 @@ class ClashForMeConfig {
 
   /// mmdb 下载地址
   String mmdbUrl;
+  String geodataBaseUrl;
+
+  String get geositeUrl => '$geodataBaseUrl/geosite.dat';
+
+  Map<String, String> get geoxUrls => {
+    'mmdb': mmdbUrl,
+    'geosite': geositeUrl,
+    'geoip': '$geodataBaseUrl/geoip.dat',
+    'asn': '$geodataBaseUrl/GeoLite2-ASN.mmdb',
+  };
 
   /// 延迟测试地址
   String delayTestUrl;
@@ -30,6 +40,7 @@ class ClashForMeConfig {
     this.selectedFile,
     required this.profiles,
     required this.mmdbUrl,
+    this.geodataBaseUrl = DefaultConfigValue.geodataBaseUrl,
     required this.delayTestUrl,
     this.tunIf,
   });
@@ -38,6 +49,7 @@ class ClashForMeConfig {
     String? selectedFile,
     List<ProfileBase>? profiles,
     String? mmdbUrl,
+    String? geodataBaseUrl,
     String? delayTestUrl,
     bool? tunIf,
   }) {
@@ -45,6 +57,7 @@ class ClashForMeConfig {
       selectedFile: selectedFile ?? this.selectedFile,
       profiles: profiles ?? this.profiles,
       mmdbUrl: mmdbUrl ?? this.mmdbUrl,
+      geodataBaseUrl: geodataBaseUrl ?? this.geodataBaseUrl,
       delayTestUrl: delayTestUrl ?? this.delayTestUrl,
       tunIf: tunIf ?? this.tunIf,
     );
@@ -81,6 +94,11 @@ class ClashForMeConfig {
 
       // 对必填项赋予默认值
       cfm.putIfAbsent("mmdb-url", () => DefaultConfigValue.mmdbUrl);
+      // Migrate the old default only; preserve user-supplied download URLs.
+      if (cfm['mmdb-url'] ==
+          'https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb') {
+        cfm['mmdb-url'] = DefaultConfigValue.mmdbUrl;
+      }
       cfm.putIfAbsent("delay-test-url", () => DefaultConfigValue.delayTestUrl);
 
       return AppJson.fromMap<ClashForMeConfig>(cfm)!;

@@ -7,6 +7,8 @@ import 'package:clash_for_flutter/app/utils/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 
 const btnSize = Size(200, 70);
 
@@ -39,14 +41,22 @@ class _HomePageState extends State<HomePage> {
             }
           }
         })
-        .catchError((e) {
+        .catchError((Object e, StackTrace stack) {
+          debugPrint('切换代理失败：$e\n$stack');
           if (e is MessageException) {
             Asuka.showSnackBar(SnackBar(content: Text(e.getMessage())));
           } else {
-            Asuka.showSnackBar(const SnackBar(content: Text("发生未知错误")));
+            final detail = e is DioException
+                ? e.message ?? e.toString()
+                : e is PlatformException
+                ? e.message ?? e.code
+                : e.toString();
+            Asuka.showSnackBar(SnackBar(content: Text('切换代理失败：$detail')));
           }
         })
-        .then((_) => setState(() => _loading = false));
+        .then((_) {
+          if (mounted) setState(() => _loading = false);
+        });
   }
 
   changeTun(bool? tunIf) {

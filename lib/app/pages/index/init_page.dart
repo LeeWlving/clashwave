@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:asuka/asuka.dart';
@@ -11,6 +12,7 @@ import 'package:clash_for_flutter/app/utils/constants.dart';
 import 'package:clash_for_flutter/core_control.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:dio/dio.dart';
 
 class InitPage extends StatefulWidget {
   const InitPage({super.key});
@@ -24,14 +26,27 @@ class _InitPageState extends State<InitPage> {
   final _core = Modular.get<CoreConfig>();
   final _request = Modular.get<Request>();
   final _logs = Modular.get<LogsSubscription>();
-  double _loadingProgress = 0;
-  bool _isLoading = false;
+  double? _loadingProgress;
+  bool _isLoading = true;
+  bool _skipDataDownloads = false;
+  CancelToken? _downloadCancellation;
   String _loadingLabel = '正在准备 Mihomo 数据文件';
 
   @override
   void initState() {
-    _init();
     super.initState();
+    _init();
+  }
+
+  @override
+  void dispose() {
+    _downloadCancellation?.cancel('页面已关闭');
+    super.dispose();
+  }
+
+  void _skipDownloads() {
+    _skipDataDownloads = true;
+    _downloadCancellation?.cancel('用户跳过下载');
   }
 
   Future<void> _init() async {
@@ -42,7 +57,6 @@ class _InitPageState extends State<InitPage> {
             throw MessageException("无法连接到内核，请尝试重启应用");
           }
 
-          _core.init();
           await _config.init();
 
           final mmdb = File("${Constants.homeDir.path}${Constants.mmdb}");
@@ -60,7 +74,7 @@ class _InitPageState extends State<InitPage> {
           final geosite = File("${Constants.homeDir.path}${Constants.geosite}");
           await _ensureCoreData(
             file: geosite,
-            url: DefaultConfigValue.geositeUrl,
+            url: _config.clashForMe.geositeUrl,
             label: 'GeoSite.dat',
             isValid: () async =>
                 geosite.existsSync() && geosite.lengthSync() > 0,
@@ -77,7 +91,7 @@ class _InitPageState extends State<InitPage> {
           // opening. Keep the bootstrap config active so it can be updated or
           // replaced from the profile page.
           try {
-            await _config.asyncProfile();
+            if (!_skipDataDownloads) await _config.asyncProfile();
           } catch (error) {
             Asuka.showSnackBar(
               SnackBar(content: Text('订阅配置加载失败，请更新或更换订阅：$error')),
@@ -86,10 +100,13 @@ class _InitPageState extends State<InitPage> {
         })
         .then((value) async {
           await _core.asyncConfig();
+          if (!mounted) return;
           _logs.startSubLogs(); // 启动日志订阅
           Modular.to.navigate("/tab");
         })
         .onError((error, stackTrace) {
+          if (!mounted) return;
+          setState(() => _isLoading = false);
           Modular.to.navigate("/error");
           Asuka.showSnackBar(SnackBar(content: Text(error.toString())));
         });
@@ -101,46 +118,82 @@ class _InitPageState extends State<InitPage> {
     required String label,
     required Future<bool> Function() isValid,
   }) async {
-    if (await isValid()) return;
+    if (_skipDataDownloads || !mounted || await isValid()) return;
+    final cancellation = CancelToken();
+    _downloadCancellation = cancellation;
+    // Never treat an interrupted download as a valid database on next launch.
+    final partial = File('${file.path}.part');
 
     if (mounted) {
       setState(() {
         _isLoading = true;
-        _loadingProgress = 0;
+        _loadingProgress = null;
         _loadingLabel = '正在下载 $label';
       });
     }
 
     try {
-      await _request.downFile(
-        urlPath: url,
-        savePath: file.path,
-        onReceiveProgress: (received, total) {
-          if (mounted && total > 0) {
-            setState(() => _loadingProgress = received / total);
-          }
-        },
-      );
+      await _request
+          .downFile(
+            urlPath: url,
+            savePath: partial.path,
+            cancelToken: cancellation,
+            onReceiveProgress: (received, total) {
+              if (mounted && total > 0) {
+                setState(() => _loadingProgress = received / total);
+              }
+            },
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              cancellation.cancel('下载超时');
+              throw TimeoutException('$label 下载超过 30 秒');
+            },
+          );
+      if (!cancellation.isCancelled) await partial.rename(file.path);
     } catch (error) {
-      Asuka.showSnackBar(SnackBar(content: Text('$label 下载失败，可稍后重试：$error')));
+      final skipped = _skipDataDownloads;
+      _skipDataDownloads = true;
+      if (mounted && !skipped) {
+        Asuka.showSnackBar(
+          const SnackBar(content: Text('规则数据暂时无法下载，先进入应用。需要这些数据的规则暂不可用。')),
+        );
+      }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      _downloadCancellation = null;
+      if (mounted) {
+        setState(() {
+          _loadingProgress = null;
+          _loadingLabel = '正在进入应用…';
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return _isLoading
-        ? LoadingWidget(value: _loadingProgress, label: _loadingLabel)
+        ? LoadingWidget(
+            value: _loadingProgress,
+            label: _loadingLabel,
+            onSkip: _downloadCancellation == null ? null : _skipDownloads,
+          )
         : const RouterOutlet();
   }
 }
 
 class LoadingWidget extends StatelessWidget {
-  const LoadingWidget({super.key, required this.value, required this.label});
+  const LoadingWidget({
+    super.key,
+    required this.value,
+    required this.label,
+    this.onSkip,
+  });
 
-  final double value;
+  final double? value;
   final String label;
+  final VoidCallback? onSkip;
 
   @override
   Widget build(BuildContext context) {
@@ -163,6 +216,8 @@ class LoadingWidget extends StatelessWidget {
                 ),
               ),
               Text(label),
+              if (onSkip != null)
+                TextButton(onPressed: onSkip, child: const Text('跳过，进入应用')),
             ],
           ),
         ),

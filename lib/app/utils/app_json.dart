@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:clash_for_flutter/app/utils/constants.dart';
 
 import 'package:clash_for_flutter/app/bean/clash_for_me_config_bean.dart';
 import 'package:clash_for_flutter/app/bean/config_bean.dart';
@@ -237,6 +238,9 @@ class AppJson {
             .whereType<ProfileBase>()
             .toList(),
         mmdbUrl: _string(map['mmdb-url']),
+        geodataBaseUrl:
+            map['geodata-base-url'] as String? ??
+            DefaultConfigValue.geodataBaseUrl,
         delayTestUrl: _string(map['delay-test-url']),
         tunIf: _nullableBool(map['tun-if']),
       );
@@ -245,6 +249,7 @@ class AppJson {
     'selected-file': value.selectedFile,
     'profiles': value.profiles.map(_profileToMap).toList(),
     'mmdb-url': value.mmdbUrl,
+    'geodata-base-url': value.geodataBaseUrl,
     'delay-test-url': value.delayTestUrl,
     'tun-if': value.tunIf,
   };
