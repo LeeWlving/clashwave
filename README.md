@@ -11,14 +11,15 @@
 
 ## 功能
 
-- 从订阅 URL 或本地 YAML 文件导入配置
+- 从订阅 URL 或本地 YAML 文件导入配置，下载后校验并原子替换
+- 可配置订阅 User-Agent，支持重复检测、定时更新及失败回滚
 - 查看并切换 Mihomo 代理组与节点
 - 延迟测试、活动连接和实时日志
 - 持久化应用设置与订阅信息
-- Android 系统 VPN、TUN 转发和前台服务通知
+- Android 系统 VPN、快捷设置磁贴、Always-on VPN、网络切换恢复和前台服务通知
 - 支持 `clash://install-config` 深链导入
 - 支持 `https://clashwave.wenyun.qzz.io` Android App Links
-- 桌面端系统代理、托盘和开机启动能力
+- 桌面端系统代理、状态托盘，以及普通权限 GUI 与按需提权的 Mihomo 内核进程
 
 ## 技术栈
 
@@ -34,6 +35,9 @@
 
 Android 端通过 `VpnService` 获取系统 VPN 授权，将 TUN 文件描述符交给 Mihomo 处理；
 应用界面通过 Mihomo 提供的 Clash-compatible REST API 管理配置、代理、连接和日志。
+桌面端默认以普通权限启动 Mihomo；首次开启 TUN 时才请求系统管理员授权，并将内核切换到
+由 GUI 生命周期监督的提权进程，界面本身始终保持普通权限。GUI 与内核继续通过仅监听本机的
+REST/WebSocket 控制端通信。
 
 ## 平台状态
 
@@ -47,6 +51,13 @@ flutter build macos --release
 应用位于 `build/macos/Build/Products/Release/ClashWave.app`。构建会将内核放入
 `Contents/MacOS/mihomo`；缺少内核时会直接终止构建，避免生成无法启动的应用。
 
+Linux 构建前先准备对应架构的 Mihomo：
+
+```bash
+sh linux/prepare_core.sh
+flutter build linux --release
+```
+
 GeoIP（MMDB / DAT）和 GeoSite 数据随应用打包，首次启动会先释放缺失的数据文件，
 无需联网下载，已有数据不会被覆盖。设置中的“规则数据下载镜像”用于后续更新和
 内核缺失数据时的下载，默认采用 Mihomo 文档列出的 jsDelivr 镜像。
@@ -55,9 +66,9 @@ GeoIP（MMDB / DAT）和 GeoSite 数据随应用打包，首次启动会先释�
 | 平台 | 状态 | 说明 |
 | --- | --- | --- |
 | Android | 主要支持 | 已集成 Mihomo、VpnService、TUN 与 App Links |
-| Windows | 支持 | 系统代理、托盘与桌面打包配置 |
-| Linux | 支持 | 系统代理与 AppImage 打包配置 |
-| macOS | 支持 | 桌面构建与 DMG 配置 |
+| Windows | 支持 | 系统代理、状态托盘、按需提权内核与安装包 |
+| Linux | 支持 | 系统代理、pkexec 按需提权与 AppImage 配置 |
+| macOS | 支持 | 系统代理、管理员按需提权与 DMG 配置 |
 | iOS | 实验性 | 工程配置已迁移，发布前仍需在真实设备验证 |
 
 ## 开发环境
@@ -116,6 +127,20 @@ build/app/outputs/bundle/release/app-release.aab
 `android/key.properties`、JKS/keystore、`build/`、`.dart_tool/` 及本地迁移目录均已加入
 `.gitignore`，不得提交到版本库。
 
+GitHub Actions 与 GitCode 流水线使用相同的四个加密变量，密钥内容必须是 JKS 文件的
+Base64，不要把任何密码或密钥文件提交到仓库：
+
+| 变量 | 内容 |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | 上传密钥 JKS 的 Base64 |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore 密码 |
+| `ANDROID_KEY_PASSWORD` | key 密码 |
+| `ANDROID_KEY_ALIAS` | key alias |
+
+GitHub 的 tag 流水线在缺少签名变量时会直接失败；普通分支仍可生成未签名的检查构建。
+GitCode 的发布流水线只生成已签名 AAB。两个流水线都会固定 Flutter、校验 Mihomo 下载文件的
+SHA-256，并在打包前运行静态分析和测试。
+
 完整的签名、VPN/前台服务申报、Data safety 和上线检查参见
 [Google Play 发布清单](docs/google-play-release.md)。
 
@@ -134,10 +159,12 @@ https://clashwave.wenyun.qzz.io/.well-known/assetlinks.json
 
 ```text
 android/                 Android VpnService、Mihomo bridge 与构建配置
+.github/workflows/       GitHub 检查、Windows 与 Android AAB 发布
+.gitcode/workflows/      GitCode Android AAB 发布
 lib/app/                 页面、模型、状态与 Clash-compatible API
 lib/app/utils/app_json.dart
                          API 与持久化数据的显式 JSON 编解码
-lib/core_control.dart    Flutter 与原生 Mihomo 的 MethodChannel
+lib/core_control.dart    移动端 MethodChannel 与桌面内核权限/生命周期控制
 docs/                    使用说明与 Google Play 发布文档
 test/                    配置及 JSON 兼容测试
 ```

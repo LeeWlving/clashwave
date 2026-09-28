@@ -1,256 +1,168 @@
-name: build
+name: Build and release ClashWave
 
 on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
   workflow_dispatch:
-  release:
-    types: [ published ]
+
+concurrency:
+  group: clashwave-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+permissions:
+  contents: write
+
 env:
-  FLUTTER_VERSION: "3.16.0"
-  CORE_VERSION: "1.18.1"
+  FLUTTER_VERSION: '3.47.5'
+  MIHOMO_VERSION: '1.19.31'
+  MIHOMO_ANDROID_WRAPPER_VERSION: '0.3.5'
+  MIHOMO_WINDOWS_ZIP_SHA256: '38b2420799d9e7cde77ec1a19c7150dd17ca77f7fb82d9f62cb8763a307eee67'
+  MIHOMO_ANDROID_AAR_SHA256: '41ddcce67de37f406377798c5adbc7ff925e6cd9cadbef3f187da3a03e564176'
+
 jobs:
-  get-release:
+  quality:
+    name: Analyze and test
     runs-on: ubuntu-latest
-    outputs:
-      tag_name: ${{ steps.get-release.outputs.tag_name }}
-      upload_url: ${{ steps.get-release.outputs.upload_url }}
-
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: thebritican/fetch-latest-release@v2.0.0
-        id: get-release
-  build-windows:
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Resolve locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+      - name: Test
+        run: flutter test
+
+  android:
+    name: Android App Bundle
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      HAS_ANDROID_SIGNING: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Download and verify Android Mihomo bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          file="android/app/libs/libmihomo-android-v${MIHOMO_ANDROID_WRAPPER_VERSION}.aar"
+          curl --fail --location --retry 3 \
+            "https://github.com/oviron/libmihomo-android/releases/download/v${MIHOMO_ANDROID_WRAPPER_VERSION}/libmihomo-android-v${MIHOMO_ANDROID_WRAPPER_VERSION}.aar" \
+            --output "$file"
+          echo "${MIHOMO_ANDROID_AAR_SHA256}  $file" | sha256sum --check --strict
+      - name: Configure upload signing
+        if: env.HAS_ANDROID_SIGNING == 'true'
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: bash scripts/configure-android-signing.sh
+      - name: Require signing for tags
+        if: startsWith(github.ref, 'refs/tags/') && env.HAS_ANDROID_SIGNING != 'true'
+        run: |
+          echo 'Android signing secrets are required for release tags.' >&2
+          exit 1
+      - name: Resolve locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Build AAB
+        run: flutter build appbundle --release --no-pub
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClashWave-android-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+      - name: Publish AAB to GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/app/outputs/bundle/release/app-release.aab
+
+  windows:
+    name: Windows x64
+    needs: quality
     runs-on: windows-latest
-    needs: [ get-release ]
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-      - name: Build
-        env:
-          VERSION: ${{ needs.get-release.outputs.tag_name }}
+          channel: stable
+          cache: true
+      - name: Download and verify Mihomo
+        shell: pwsh
         run: |
-          curl -L "https://github.com/mapleafgo/cff-core/releases/download/$env:CORE_VERSION/libclash-$env:CORE_VERSION-windows-amd64.tar.gz" -o "libclash.tar.gz"
-          tar -zxf libclash.tar.gz
-          mv build/*.dll windows/core/libclash.dll
-
-          Invoke-WebRequest -Uri "https://github.com/jrsoftware/issrc/raw/main/Files/Languages/Unofficial/ChineseSimplified.isl" -OutFile "ChineseSimplified.isl"
-          mv ChineseSimplified.isl "C:\Program Files (x86)\Inno Setup 6\Languages\"
-
-          flutter build windows
-          $mingw = "C:\Program Files\Git\mingw64\bin"
-          $system = "C:\Windows\System32"
-          $release = "build/windows\x64\runner\Release\"
-          cp $system\msvcp140.dll $release
-          cp $system\vcruntime140.dll $release
-          cp $system\vcruntime140_1.dll $release
-
-          New-Item -Path build/windows\x64\Output -ItemType Directory
-          Compress-Archive -Path "$release*" -DestinationPath "build/windows\x64\Output\clash_for_flutter-$env:VERSION-windows-amd64-portable.zip"
-
-          cd build/windows/x64
-          echo @"
-          ; Script generated by the Inno Setup Script Wizard.
-          ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
-
-          #define MyAppName "Clash for Flutter"
-          #define MyAppVersion "$($env:VERSION)"
-          #define MyAppPublisher "mapleafgo"
-          #define MyAppURL "https://github.com/mapleafgo/clash-for-flutter"
-          #define MyAppExeName "clash_for_flutter.exe"
-          #define MyOutputName "clash_for_flutter"
-
-          [Setup]
-          ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
-          ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
-          AppId={{B3039CF4-E394-42B6-971C-4BE97F322DE8}
-          AppName={#MyAppName}
-          AppVersion={#MyAppVersion}
-          ;AppVerName={#MyAppName} {#MyAppVersion}
-          AppPublisher={#MyAppPublisher}
-          AppPublisherURL={#MyAppURL}
-          AppSupportURL={#MyAppURL}
-          AppUpdatesURL={#MyAppURL}
-          DefaultDirName={autopf}\{#MyOutputName}
-          DisableProgramGroupPage=yes
-          LicenseFile=..\..\..\LICENSE
-          ; Remove the following line to run in administrative install mode (install for all users.)
-          PrivilegesRequired=lowest
-          OutputBaseFilename={#MyOutputName}
-          SetupIconFile=..\..\..\assets\icon.ico
-          Compression=lzma
-          SolidCompression=yes
-          WizardStyle=modern
-          LanguageDetectionMethod=uilanguage
-          ShowLanguageDialog=yes
-
-          [Languages]
-          Name: "english"; MessagesFile: "compiler:Default.isl"
-          Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
-
-          [Tasks]
-          Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-
-          [Files]
-          Source: ".\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
-          ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
-
-          [UninstallDelete]
-          Type: filesandordirs; Name: "{app}"
-
-          [Icons]
-          Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-          Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-
-          [Run]
-          Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
-          "@ > setup.iss
-          iscc.exe setup.iss
-          mv "Output\clash_for_flutter.exe" "Output\clash_for_flutter-$env:VERSION-windows-amd64.exe"
-          Compress-Archive -Path "Output\clash_for_flutter-$env:VERSION-windows-amd64.exe" -DestinationPath "Output\clash_for_flutter-$env:VERSION-windows-amd64.zip"
-          Remove-Item -Path "Output\clash_for_flutter-$env:VERSION-windows-amd64.exe"
-      - name: Upload
-        uses: shogo82148/actions-upload-release-asset@v1
-        with:
-          upload_url: ${{ needs.get-release.outputs.upload_url }}
-          asset_path: build/windows/x64/Output/*
-          overwrite: true
-  build-linux-amd64:
-    runs-on: ubuntu-20.04
-    needs: [ get-release ]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-      - run: |
-          sudo apt-get update -y
-          sudo apt-get install -y locate ninja-build libgtk-3-dev libayatana-appindicator3-dev libnotify-dev \
-          binutils coreutils desktop-file-utils fakeroot fuse libgdk-pixbuf2.0-dev patchelf python3-pip python3-setuptools squashfs-tools strace util-linux zsync
-      - name: Build
-        env:
-          VERSION: ${{ needs.get-release.outputs.tag_name }}
-        run: |
-          curl -L https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -o /usr/local/bin/appimagetool
-          chmod +x /usr/local/bin/appimagetool
-
-          curl -L https://github.com/mapleafgo/cff-core/releases/download/$CORE_VERSION/libclash-$CORE_VERSION-linux-amd64.tar.gz -o libclash.tar.gz
-          tar -zxf libclash.tar.gz
-          mv build/*.so linux/core/libclash.so
-
-          dart pub global activate flutter_distributor
-          flutter_distributor package --platform=linux --targets=appimage,zip
-      - name: Upload
-        uses: shogo82148/actions-upload-release-asset@v1
-        with:
-          upload_url: ${{ needs.get-release.outputs.upload_url }}
-          asset_path: dist/*/*
-          overwrite: true
-  build-macos:
-    runs-on: macos-latest
-    needs: [ get-release ]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-      - name: Install appdmg
-        run: |
-          python3 -m pip install setuptools
-          npm install -g appdmg
-      - name: Mkdir core
-        run: mkdir core
-      - name: Build
-        env:
-          VERSION: ${{ needs.get-release.outputs.tag_name }}
-        run: |
-          PROJECT_DIR=$(pwd)
-
-          sh macos/prepare_core.sh
-
-          flutter build macos
-          cd build/macos/Build/Products/Release
-          cat>appdmg.json<<EOF
-          {
-            "title": "Clash for Flutter",
-            "icon": "clash_for_flutter.app/Contents/Resources/AppIcon.icns",
-            "contents": [
-              { "x": 448, "y": 344, "type": "link", "path": "/Applications" },
-              { "x": 192, "y": 344, "type": "file", "path": "clash_for_flutter.app" }
-            ]
+          $archive = Join-Path $env:RUNNER_TEMP 'mihomo.zip'
+          Invoke-WebRequest `
+            -Uri "https://github.com/MetaCubeX/mihomo/releases/download/v$env:MIHOMO_VERSION/mihomo-windows-amd64-v$env:MIHOMO_VERSION.zip" `
+            -OutFile $archive
+          $actual = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $env:MIHOMO_WINDOWS_ZIP_SHA256) {
+            throw "Mihomo checksum mismatch: $actual"
           }
-          EOF
-          mkdir dist
-          appdmg appdmg.json dist/clash_for_flutter-$VERSION-macos.dmg
-      - name: Upload
-        uses: shogo82148/actions-upload-release-asset@v1
-        with:
-          upload_url: ${{ needs.get-release.outputs.upload_url }}
-          asset_path: build/macos/Build/Products/Release/dist/*.dmg
-          overwrite: true
-  build-android-arm64:
-    runs-on: ubuntu-latest
-    needs: [ get-release ]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
-        with:
-          distribution: "liberica"
-          java-version: "17"
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-      - name: Build
-        env:
-          VERSION: ${{ needs.get-release.outputs.tag_name }}
+          $extract = Join-Path $env:RUNNER_TEMP 'mihomo'
+          Expand-Archive $archive -DestinationPath $extract -Force
+          $core = Get-ChildItem $extract -Recurse -File -Filter 'mihomo*.exe' | Select-Object -First 1
+          if ($null -eq $core) { throw 'mihomo.exe was not found in the release archive' }
+          Copy-Item $core.FullName windows/core/mihomo.exe -Force
+      - name: Resolve locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Build Windows release
+        run: flutter build windows --release --no-pub
+      - name: Read app version
+        id: version
+        shell: pwsh
         run: |
-          curl -L https://github.com/mapleafgo/cff-core/releases/download/$CORE_VERSION/libclash-$CORE_VERSION-android-arm64.tar.gz -o libclash.tar.gz
-          tar -zxf libclash.tar.gz
-          mv build/*.aar android/app/libs/libclash.aar
-
-          flutter build apk --release --target-platform android-arm64
-          cd build/app/outputs/flutter-apk
-          mv app-release.apk clash_for_flutter-$VERSION-arm64.apk
-      - name: Upload
-        uses: shogo82148/actions-upload-release-asset@v1
-        with:
-          upload_url: ${{ needs.get-release.outputs.upload_url }}
-          asset_path: build/app/outputs/flutter-apk/*.apk
-          overwrite: true
-  build-android-x64:
-    runs-on: ubuntu-latest
-    needs: [ get-release ]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
-        with:
-          distribution: "liberica"
-          java-version: "17"
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-      - name: Build
-        env:
-          VERSION: ${{ needs.get-release.outputs.tag_name }}
+          $line = Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$'
+          $version = $line.Matches[0].Groups[1].Value.Split('+')[0]
+          "value=$version" >> $env:GITHUB_OUTPUT
+      - name: Create portable archive
+        shell: pwsh
         run: |
-          curl -L https://github.com/mapleafgo/cff-core/releases/download/$CORE_VERSION/libclash-$CORE_VERSION-android-amd64.tar.gz -o libclash.tar.gz
-          tar -zxf libclash.tar.gz
-          mv build/*.aar android/app/libs/libclash.aar
-
-          flutter build apk --release --target-platform android-x64
-          cd build/app/outputs/flutter-apk
-          mv app-release.apk clash_for_flutter-$VERSION-x64.apk
-      - name: Upload
-        uses: shogo82148/actions-upload-release-asset@v1
+          $release = 'build/windows/x64/runner/Release'
+          $output = 'dist/ClashWave-${{ steps.version.outputs.value }}-windows-x64-portable.zip'
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          Compress-Archive -Path "$release/*" -DestinationPath $output -Force
+      - name: Create installer
+        shell: pwsh
+        run: |
+          $template = Get-Content windows/packaging/exe/inno_setup.iss -Raw
+          $template = $template.Replace('{{APP_VERSION}}', '${{ steps.version.outputs.value }}')
+          $template | Set-Content build/windows/setup.iss -Encoding UTF8
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /Q build/windows/setup.iss
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
         with:
-          upload_url: ${{ needs.get-release.outputs.upload_url }}
-          asset_path: build/app/outputs/flutter-apk/*.apk
-          overwrite: true
+          name: ClashWave-windows-x64
+          path: |
+            dist/*.zip
+            dist/*.exe
+          if-no-files-found: error
+      - name: Publish Windows artifacts to GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.zip
+            dist/*.exe

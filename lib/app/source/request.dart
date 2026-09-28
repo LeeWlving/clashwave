@@ -18,6 +18,7 @@ import 'package:clash_for_flutter/app/utils/app_json.dart';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:clash_for_flutter/app/utils/proxy_port.dart';
+import 'package:clash_for_flutter/app/utils/subscription_validation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class Request {
@@ -33,8 +34,9 @@ class Request {
     BaseOptions(
       // Subscription services use this header to choose the output format.
       // `clash.meta` requests a complete Mihomo-compatible YAML file.
-      headers: {'User-Agent': 'clash.meta'},
+      headers: {'User-Agent': DefaultConfigValue.subscriptionUserAgent},
       connectTimeout: const Duration(seconds: 3),
+      receiveTimeout: const Duration(seconds: 30),
     ),
   );
 
@@ -89,6 +91,13 @@ class Request {
 
   static String _pathSegment(String value) => Uri.encodeComponent(value);
 
+  void setSubscriptionUserAgent(String value) {
+    _dio.options.headers['User-Agent'] = value;
+  }
+
+  Future<void> validateSubscriptionFile(String path) =>
+      SubscriptionValidation.validateFile(File(path));
+
   Future<Response> downFile({
     required String urlPath,
     required String savePath,
@@ -107,11 +116,18 @@ class Request {
   Future<ProfileURL> getSubscribe({
     required ProfileURL profile,
     required String profilesDir,
-  }) {
-    var time = DateTime.now();
-    var file = "${time.millisecondsSinceEpoch}.yaml";
-    var savePath = "$profilesDir/$file";
-    return downFile(urlPath: profile.url, savePath: savePath).then((resp) {
+  }) async {
+    final time = DateTime.now();
+    final file = "${time.microsecondsSinceEpoch}.yaml";
+    final target = File("$profilesDir/$file");
+    final partial = File('${target.path}.part');
+    await target.parent.create(recursive: true);
+    if (await partial.exists()) await partial.delete();
+
+    try {
+      final resp = await downFile(urlPath: profile.url, savePath: partial.path);
+      await SubscriptionValidation.validateFile(partial);
+      await partial.rename(target.path);
       String? filename;
       // 解析文件名
       if (profile.name.isEmpty) {
@@ -148,7 +164,11 @@ class Request {
       return profile
         ..time = time
         ..file = file;
-    });
+    } catch (_) {
+      if (await partial.exists()) await partial.delete();
+      if (await target.exists()) await target.delete();
+      rethrow;
+    }
   }
 
   Future<Response> hello() async {

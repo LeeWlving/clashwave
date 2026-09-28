@@ -28,6 +28,7 @@ class _AppDrawerState extends State<AppDrawer> {
   void initState() {
     super.initState();
     _smc.addListener(() => widget.page.jumpToPage(_smc.currentIndex));
+    widget.page.addListener(_syncSelection);
     _subscription = _request.traffic().listen((event) {
       setState(() => _speed = event ?? NetSpeed());
     });
@@ -39,8 +40,15 @@ class _AppDrawerState extends State<AppDrawer> {
   @override
   void dispose() {
     _subscription?.cancel();
+    widget.page.removeListener(_syncSelection);
     _smc.dispose();
     super.dispose();
+  }
+
+  void _syncSelection() {
+    final page = widget.page.page;
+    if (page == null) return;
+    _smc.goTo(page.round());
   }
 
   @override

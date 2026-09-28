@@ -242,6 +242,9 @@ class AppJson {
             map['geodata-base-url'] as String? ??
             DefaultConfigValue.geodataBaseUrl,
         delayTestUrl: _string(map['delay-test-url']),
+        subscriptionUserAgent:
+            _nullableString(map['subscription-user-agent']) ??
+            DefaultConfigValue.subscriptionUserAgent,
         tunIf: _nullableBool(map['tun-if']),
       );
 
@@ -251,6 +254,7 @@ class AppJson {
     'mmdb-url': value.mmdbUrl,
     'geodata-base-url': value.geodataBaseUrl,
     'delay-test-url': value.delayTestUrl,
+    'subscription-user-agent': value.subscriptionUserAgent,
     'tun-if': value.tunIf,
   };
 

@@ -1,96 +1,280 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:asuka/asuka.dart';
 import 'package:clash_for_flutter/app/enum/type_enum.dart';
+import 'package:clash_for_flutter/app/pages/router.dart';
 import 'package:clash_for_flutter/app/source/app_config.dart';
 import 'package:clash_for_flutter/app/source/core_config.dart';
+import 'package:clash_for_flutter/app/utils/constants.dart';
 import 'package:clash_for_flutter/core_control.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:mobx/mobx.dart';
 import 'package:system_tray/system_tray.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 
-/// 托盘菜单控制类
+/// Windows/macOS 托盘菜单与运行状态图标。
 class TrayController {
-  final SystemTray _tray = SystemTray();
-  final _config = Modular.get<AppConfig>();
-  final _core = Modular.get<CoreConfig>();
+  static const _activeIcon = 'assets/icon.ico';
+  static const _inactiveIcon = 'assets/icon_inactive.ico';
+  static const _activeIconOther = 'assets/logo_64.png';
+  static const _inactiveIconOther = 'assets/logo_64_inactive.png';
 
-  void init() {
-    // 监听系统代理
-    reaction(
-      (_) => _config.systemProxy,
-      (status) =>
-          _menuReset(isChecked: status, mode: _core.clash.mode ?? Mode.Rule),
-    );
-    // 监听代理模式
-    reaction(
-      (_) => _core.clash.mode,
-      (mode) =>
-          _menuReset(isChecked: _config.systemProxy, mode: mode ?? Mode.Rule),
-    );
-    _tray.initSystemTray(
-      iconPath: Platform.isWindows ? 'assets/icon.ico' : 'assets/logo_64.png',
-      toolTip: "ClashWave",
-    );
-    _tray.registerSystemTrayEventHandler((e) {
-      if (e == kSystemTrayEventClick) {
-        windowManager.show();
-      } else if (e == kSystemTrayEventRightClick) {
-        _tray.popUpContextMenu();
-      }
-    });
-    // 初始化托盘菜单
-    _menuReset(
-      isChecked: _config.systemProxy,
-      mode: _core.clash.mode ?? Mode.Rule,
-    );
+  final SystemTray _tray = SystemTray();
+  final AppConfig _config = Modular.get<AppConfig>();
+  final CoreConfig _core = Modular.get<CoreConfig>();
+  final List<ReactionDisposer> _reactions = [];
+
+  bool _initialized = false;
+  bool _lightMode = false;
+  bool? _lastEnabled;
+  int _refreshGeneration = 0;
+  PageController? _pageController;
+
+  void attachPageController(PageController controller) {
+    _pageController = controller;
   }
 
-  void _menuReset({required bool isChecked, required Mode mode}) async {
+  void detachPageController(PageController controller) {
+    if (identical(_pageController, controller)) _pageController = null;
+  }
+
+  void init() {
+    if (_initialized) return;
+    _initialized = true;
+    unawaited(_initialize());
+  }
+
+  Future<void> _initialize() async {
+    _reactions.addAll([
+      reaction((_) => _config.systemProxy, (_) => unawaited(_refreshTray())),
+      reaction((_) => _core.clash.mode, (_) => unawaited(_refreshTray())),
+      reaction((_) => _core.tunEnable, (_) => unawaited(_refreshTray())),
+    ]);
+
+    await _tray.initSystemTray(
+      iconPath: _iconPath(enabled: _isEnabled),
+      toolTip: _toolTip,
+    );
+    _tray.registerSystemTrayEventHandler((event) {
+      if (event == kSystemTrayEventClick) {
+        unawaited(_showPage('/home'));
+      } else if (event == kSystemTrayEventRightClick) {
+        unawaited(_tray.popUpContextMenu());
+      }
+    });
+    await _refreshTray(forceIcon: true);
+  }
+
+  bool get _isEnabled => _config.systemProxy || _core.tunEnable;
+
+  String get _toolTip => _isEnabled ? 'ClashWave · 已开启' : 'ClashWave · 未开启';
+
+  String _iconPath({required bool enabled}) {
+    if (Platform.isWindows) {
+      return enabled ? _activeIcon : _inactiveIcon;
+    }
+    return enabled ? _activeIconOther : _inactiveIconOther;
+  }
+
+  Future<void> _refreshTray({bool forceIcon = false}) async {
+    final generation = ++_refreshGeneration;
+    final enabled = _isEnabled;
+    final mode = _core.clash.mode ?? Mode.Rule;
+
+    if (forceIcon || enabled != _lastEnabled) {
+      await _tray.setSystemTrayInfo(
+        iconPath: _iconPath(enabled: enabled),
+        toolTip: _toolTip,
+      );
+      _lastEnabled = enabled;
+    }
+
+    final menu = await _buildMenu(enabled: enabled, mode: mode);
+    if (generation == _refreshGeneration) {
+      await _tray.setContextMenu(menu);
+    }
+  }
+
+  Future<Menu> _buildMenu({required bool enabled, required Mode mode}) async {
     final menu = Menu();
     await menu.buildFrom([
-      MenuItemLabel(label: "显示窗口", onClicked: (_) => windowManager.show()),
-      MenuSeparator(),
-      MenuItemCheckbox(
-        label: "代理",
-        checked: isChecked,
-        onClicked: (b) async {
-          if (b.checked) {
-            await _config.closeProxy();
-          } else {
-            await _config.openProxy();
-          }
-        },
+      MenuItemLabel(
+        label: '仪表板',
+        onClicked: (_) => unawaited(_showPage('/home')),
       ),
+      MenuSeparator(),
       SubMenu(
-        label: "模式",
+        label: '出站模式（${mode.value}）',
         children: [
-          MenuItemCheckbox(
-            checked: mode == Mode.Rule,
-            label: Mode.Rule.value,
-            onClicked: (_) => _core.setState(mode: Mode.Rule),
-          ),
-          MenuItemCheckbox(
-            checked: mode == Mode.Global,
-            label: Mode.Global.value,
-            onClicked: (_) => _core.setState(mode: Mode.Global),
-          ),
-          MenuItemCheckbox(
-            checked: mode == Mode.Direct,
-            label: Mode.Direct.value,
-            onClicked: (_) => _core.setState(mode: Mode.Direct),
-          ),
+          _modeItem(Mode.Rule, mode),
+          _modeItem(Mode.Global, mode),
+          _modeItem(Mode.Direct, mode),
         ],
       ),
       MenuItemLabel(
-        label: "退出",
-        onClicked: (_) async {
-          await _config.closeProxy();
-          await CoreControl.shutdown();
-          windowManager.close().then((_) => windowManager.destroy());
-        },
+        label: '订阅',
+        onClicked: (_) => unawaited(_showPage('/profiles')),
+      ),
+      MenuItemLabel(
+        label: '代理',
+        onClicked: (_) => unawaited(_showPage('/proxys')),
+      ),
+      MenuSeparator(),
+      MenuItemCheckbox(
+        label: '系统代理',
+        checked: _config.systemProxy,
+        onClicked: (_) => unawaited(_toggleSystemProxy()),
+      ),
+      MenuItemCheckbox(
+        label: 'TUN 模式',
+        checked: _core.tunEnable,
+        onClicked: (_) => unawaited(_toggleTun()),
+      ),
+      MenuSeparator(),
+      MenuItemCheckbox(
+        label: '轻量模式',
+        checked: _lightMode,
+        onClicked: (_) => unawaited(_toggleLightMode()),
+      ),
+      SubMenu(
+        label: '打开目录',
+        children: [
+          MenuItemLabel(
+            label: '配置目录',
+            onClicked: (_) => unawaited(_openDirectory(Constants.homeDir.path)),
+          ),
+          MenuItemLabel(
+            label: '程序目录',
+            onClicked: (_) => unawaited(
+              _openDirectory(File(Platform.resolvedExecutable).parent.path),
+            ),
+          ),
+        ],
+      ),
+      SubMenu(
+        label: '更多',
+        children: [
+          MenuItemLabel(
+            label: '设置',
+            onClicked: (_) => unawaited(_showPage('/settings')),
+          ),
+          MenuItemLabel(
+            label: '官方网站',
+            onClicked: (_) => unawaited(_openUrl(Constants.homeUrl)),
+          ),
+          MenuItemLabel(
+            label: '检查更新',
+            onClicked: (_) =>
+                unawaited(_openUrl('${Constants.sourceUrl}/releases/latest')),
+          ),
+        ],
+      ),
+      MenuSeparator(),
+      MenuItemLabel(
+        label: enabled ? '退出（运行中）' : '退出',
+        onClicked: (_) => unawaited(_exit()),
       ),
     ]);
-    await _tray.setContextMenu(menu);
+    return menu;
+  }
+
+  MenuItemCheckbox _modeItem(Mode value, Mode current) {
+    return MenuItemCheckbox(
+      checked: value == current,
+      label: value.value,
+      onClicked: (_) => unawaited(_setMode(value)),
+    );
+  }
+
+  Future<void> _setMode(Mode mode) async {
+    await _runAction(() async {
+      await _core.setState(mode: mode);
+    });
+  }
+
+  Future<void> _toggleSystemProxy() async {
+    await _runAction(() async {
+      if (_config.systemProxy) {
+        await _config.closeProxy();
+      } else {
+        await _config.openProxy();
+      }
+    });
+  }
+
+  Future<void> _toggleTun() async {
+    await _runAction(() async {
+      if (_core.tunEnable) {
+        await _core.closeTun();
+      } else {
+        await _core.openTun();
+      }
+    });
+  }
+
+  Future<void> _toggleLightMode() async {
+    _lightMode = !_lightMode;
+    if (_lightMode) {
+      await windowManager.hide();
+    } else {
+      await _showWindow();
+    }
+    await _refreshTray();
+  }
+
+  Future<void> _runAction(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (error) {
+      await _showWindow();
+      Asuka.showSnackBar(SnackBar(content: Text('操作失败：$error')));
+    } finally {
+      await _refreshTray();
+    }
+  }
+
+  Future<void> _showPage(String path) async {
+    await _showWindow();
+    final index = menu.menuList.indexWhere((item) => item.path == path);
+    final pageController = _pageController;
+    if (index >= 0 && pageController != null && pageController.hasClients) {
+      pageController.jumpToPage(index);
+    }
+    Modular.to.navigate('/tab$path/');
+  }
+
+  Future<void> _showWindow() async {
+    if (_lightMode) {
+      _lightMode = false;
+      unawaited(_refreshTray());
+    }
+    await windowManager.show();
+    await windowManager.focus();
+  }
+
+  Future<void> _openDirectory(String path) async {
+    if (Platform.isWindows) {
+      await Process.run('explorer.exe', [path]);
+    } else if (Platform.isMacOS) {
+      await Process.run('open', [path]);
+    }
+  }
+
+  Future<void> _openUrl(String url) async {
+    final opened = await launchUrl(Uri.parse(url));
+    if (!opened) throw StateError('无法打开 $url');
+  }
+
+  Future<void> _exit() async {
+    if (_config.systemProxy) await _config.closeProxy();
+    if (_core.tunEnable) await _core.closeTun();
+    await CoreControl.shutdown();
+    await _tray.destroy();
+    await windowManager.setPreventClose(false);
+    await windowManager.close();
+    await windowManager.destroy();
   }
 }

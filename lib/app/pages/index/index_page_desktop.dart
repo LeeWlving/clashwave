@@ -32,6 +32,7 @@ class _IndexDesktopPageState extends State<IndexDesktopPage>
     // 接管窗口的关闭按钮
     windowManager.setPreventClose(true);
     // 托盘初始化
+    _tray.attachPageController(_page);
     _tray.init();
     Modular.to.navigate("/tab/home/");
   }
@@ -40,6 +41,8 @@ class _IndexDesktopPageState extends State<IndexDesktopPage>
   void dispose() {
     windowManager.removeListener(this);
     WidgetsBinding.instance.removeObserver(this);
+    _tray.detachPageController(_page);
+    _page.dispose();
     super.dispose();
   }
 
@@ -64,9 +67,9 @@ class _IndexDesktopPageState extends State<IndexDesktopPage>
   /// 统一处理前后台改变
   void appListener(bool state) {
     if (state) {
-      print("应用前台");
+      debugPrint("应用前台");
     } else {
-      print("应用后台");
+      debugPrint("应用后台");
     }
   }
 
@@ -81,7 +84,7 @@ class _IndexDesktopPageState extends State<IndexDesktopPage>
             itemCount: menu.size,
             onPageChanged: (i) =>
                 Modular.to.navigate("/tab${menu.getPath(i)}/"),
-            itemBuilder: (_, __) => const RouterOutlet(),
+            itemBuilder: (_, _) => const RouterOutlet(),
           ),
         ),
       ],

@@ -117,6 +117,7 @@ mixin _$AppConfig on AppConfigBase, Store {
     String? mmdbUrl,
     String? delayTestUrl,
     bool? tunIf,
+    String? subscriptionUserAgent,
   }) {
     final _$actionInfo = _$AppConfigBaseActionController.startAction(
       name: 'AppConfigBase.setState',
@@ -128,6 +129,7 @@ mixin _$AppConfig on AppConfigBase, Store {
         mmdbUrl: mmdbUrl,
         delayTestUrl: delayTestUrl,
         tunIf: tunIf,
+        subscriptionUserAgent: subscriptionUserAgent,
       );
     } finally {
       _$AppConfigBaseActionController.endAction(_$actionInfo);

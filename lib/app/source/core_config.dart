@@ -4,6 +4,7 @@ import 'package:clash_for_flutter/app/bean/config_bean.dart';
 import 'package:clash_for_flutter/app/bean/tun_bean.dart';
 import 'package:clash_for_flutter/app/enum/type_enum.dart';
 import 'package:clash_for_flutter/app/source/request.dart';
+import 'package:clash_for_flutter/app/source/logs_subscription.dart';
 import 'package:clash_for_flutter/app/utils/constants.dart';
 import 'package:clash_for_flutter/core_control.dart';
 import 'package:flutter_modular/flutter_modular.dart';
@@ -52,11 +53,23 @@ abstract class CoreConfigBase with Store {
 
   @action
   Future<void> asyncConfig() async {
-    clash = await _request.getConfigs() ?? clash;
+    final updated = await _request.getConfigs() ?? clash;
+    if (Platform.isAndroid) {
+      clash = updated.copyWith(
+        tun: Tun(enable: await CoreControl.isVpnRunning()),
+      );
+    } else {
+      clash = updated;
+    }
   }
 
   Future<void> openTun() async {
     if (Constants.isDesktop) {
+      final promoted = await CoreControl.ensurePrivilegedDesktopCore();
+      if (promoted) {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        Modular.get<LogsSubscription>().reconnect();
+      }
       await _request.patchConfigs(Config(tun: Tun(enable: true)));
     } else if (Platform.isAndroid) {
       await CoreControl.startVpn();

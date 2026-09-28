@@ -16,30 +16,36 @@ class LogsSubscription extends ChangeNotifier implements Disposable {
   final _request = Modular.get<Request>();
   final Queue<LogData> _logQueue = Queue<LogData>();
   StreamSubscription? _subscription;
+  ReactionDisposer? _levelReaction;
 
   List<LogData> get logList => _logQueue.toList();
 
   @override
   void dispose() {
+    _levelReaction?.call();
     _subscription?.cancel();
     super.dispose();
   }
 
   void startSubLogs() {
-    reaction((_) => _core.clash.logLevel ?? LogLevel.info, (level) {
-      _subscription?.cancel();
-      _subscription = _request.logs(level).listen((event) {
-        if (event == null) {
-          return;
-        }
+    _levelReaction ??= reaction(
+      (_) => _core.clash.logLevel ?? LogLevel.info,
+      (_) => reconnect(),
+      fireImmediately: true,
+    );
+  }
 
-        if (_logQueue.length >= Constants.logsCapacity) {
-          _logQueue.removeFirst();
-        }
-        _logQueue.add(event);
-        notifyListeners();
-      });
-    }, fireImmediately: true);
+  void reconnect() {
+    _subscription?.cancel();
+    final level = _core.clash.logLevel ?? LogLevel.info;
+    _subscription = _request.logs(level).listen((event) {
+      if (event == null) return;
+      if (_logQueue.length >= Constants.logsCapacity) {
+        _logQueue.removeFirst();
+      }
+      _logQueue.add(event);
+      notifyListeners();
+    });
   }
 
   void clearLogs() {

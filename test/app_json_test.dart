@@ -62,6 +62,7 @@ void main() {
       profiles: [profile],
       mmdbUrl: 'https://clashwave.wenyun.qzz.io/country.mmdb',
       delayTestUrl: 'https://www.gstatic.com/generate_204',
+      subscriptionUserAgent: 'ClashWave/test',
       tunIf: true,
     );
 
@@ -70,6 +71,7 @@ void main() {
     expect(decoded.selectedFile, 'sample.yaml');
     expect(decodedProfile.url, 'https://clashwave.wenyun.qzz.io/sample.yaml');
     expect(decodedProfile.interval, 24);
+    expect(decoded.subscriptionUserAgent, 'ClashWave/test');
     expect(decoded.tunIf, isTrue);
   });
 }

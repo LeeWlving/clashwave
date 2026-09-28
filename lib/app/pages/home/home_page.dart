@@ -62,7 +62,7 @@ class _HomePageState extends State<HomePage> {
   changeTun(bool? tunIf) {
     if (tunIf ?? false) {
       Asuka.showSnackBar(
-        const SnackBar(content: Text("请注意 tun 模式需要以管理员运行该软件，否则将无法启用代理")),
+        const SnackBar(content: Text("首次开启 TUN 时系统会请求管理员授权，应用界面仍以普通权限运行")),
       );
     }
     _config.setState(tunIf: tunIf);

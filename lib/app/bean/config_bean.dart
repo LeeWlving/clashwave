@@ -96,6 +96,7 @@ class Config {
     Mode? mode,
     LogLevel? logLevel,
     bool? ipv6,
+    Tun? tun,
   }) {
     return Config(
       redirPort: redirPort ?? this.redirPort,
@@ -105,6 +106,7 @@ class Config {
       mode: mode ?? this.mode,
       logLevel: logLevel ?? this.logLevel,
       ipv6: ipv6 ?? this.ipv6,
+      tun: tun ?? this.tun,
     );
   }
 

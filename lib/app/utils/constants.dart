@@ -48,6 +48,8 @@ class Constants {
 
 /// 默认配置值
 class DefaultConfigValue {
+  static const subscriptionUserAgent = 'clash.meta';
+
   // Mirror listed in Mihomo's official geox-url documentation.
   static const geodataBaseUrl =
       'https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release';

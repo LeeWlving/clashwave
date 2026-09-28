@@ -5,10 +5,10 @@ import 'package:clash_for_flutter/app/bean/profile_base_bean.dart';
 import 'package:clash_for_flutter/app/bean/profile_file_bean.dart';
 import 'package:clash_for_flutter/app/bean/profile_url_bean.dart';
 import 'package:clash_for_flutter/app/enum/type_enum.dart';
+import 'package:clash_for_flutter/app/exceptions/message_exception.dart';
 import 'package:clash_for_flutter/app/source/app_config.dart';
 import 'package:clash_for_flutter/app/source/request.dart';
 import 'package:clash_for_flutter/app/utils/constants.dart';
-import 'package:clash_for_flutter/app/utils/app_json.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
@@ -38,20 +38,36 @@ class ProfileController {
     Future<ProfileBase> handle;
     switch (profile.type) {
       case ProfileType.URL:
+        final urlProfile = profile as ProfileURL;
+        if (_config.hasSubscriptionUrl(urlProfile.url)) {
+          return Future.error(MessageException('该订阅地址已经存在'));
+        }
         handle = _request.getSubscribe(
-          profile: profile as ProfileURL,
+          profile: urlProfile,
           profilesDir: _config.profilesPath,
         );
         break;
       case ProfileType.FILE:
         var time = DateTime.now();
-        var file = "${time.millisecondsSinceEpoch}.yaml";
+        var file = "${time.microsecondsSinceEpoch}.yaml";
         var savePath = "${_config.profilesPath}/$file";
-        handle = File((profile as ProfileFile).path!).copy(savePath).then((_) {
-          return profile
-            ..time = time
-            ..file = file;
-        });
+        var partialPath = '$savePath.part';
+        handle = File((profile as ProfileFile).path!)
+            .copy(partialPath)
+            .then((_) => _request.validateSubscriptionFile(partialPath))
+            .then((_) => File(partialPath).rename(savePath))
+            .then((_) {
+              return profile
+                ..time = time
+                ..file = file;
+            })
+            .catchError((error) async {
+              final partial = File(partialPath);
+              if (await partial.exists()) await partial.delete();
+              final target = File(savePath);
+              if (await target.exists()) await target.delete();
+              throw error;
+            });
         break;
     }
 
@@ -74,6 +90,11 @@ class ProfileController {
 
   /// 编辑源
   void edit(ProfileBase profile) {
+    if (profile is ProfileURL &&
+        _config.hasSubscriptionUrl(profile.url, exceptFile: profile.file)) {
+      Asuka.showSnackBar(const SnackBar(content: Text('该订阅地址已经存在')));
+      return;
+    }
     var tempList = _config.profiles.toList();
     var i = tempList.indexWhere((element) => element.file == profile.file);
     tempList[i] = profile;
@@ -95,28 +116,12 @@ class ProfileController {
 
   /// 更新源(仅限URL)
   Future<void> updateProfile(String file) async {
-    var tempList = _config.profiles.toList();
-    var index = tempList.indexWhere((e) => e.file == file);
-
-    var profile = AppJson.cloneProfileUrl(tempList[index] as ProfileURL);
-
+    final profile = _config.profiles.firstWhere((e) => e.file == file);
+    if (profile is! ProfileURL) return;
     try {
-      profile = await _request.getSubscribe(
-        profile: profile,
-        profilesDir: _config.profilesPath,
-      );
+      await _config.refreshProfile(profile);
     } catch (e) {
       Asuka.showSnackBar(SnackBar(content: Text("更新异常: $e")));
-      return;
     }
-
-    tempList.replaceRange(index, index + 1, [profile]);
-
-    if (_config.selectedFile == file) {
-      _config.setState(selectedFile: profile.file, profiles: tempList);
-    } else {
-      _config.setState(profiles: tempList);
-    }
-    File("${Constants.homeDir.path}${Constants.profilesPath}/$file").delete();
   }
 }

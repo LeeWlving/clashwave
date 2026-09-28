@@ -299,6 +299,30 @@ class _SettingsPageState extends State<SettingsPage> {
                       );
                     },
                   ),
+                  SettingsTile.navigation(
+                    title: const Text('订阅 User-Agent'),
+                    description: const Text('部分订阅服务会根据此值返回不同格式'),
+                    value: Text(
+                      _config.clashForMe.subscriptionUserAgent,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onPressed: (_) {
+                      setValue(
+                        title: '订阅 User-Agent',
+                        decoration: DefaultConfigValue.subscriptionUserAgent,
+                        initialValue: _config.clashForMe.subscriptionUserAgent,
+                        onOk: (value) async {
+                          try {
+                            await _config.setSubscriptionUserAgent(value);
+                          } catch (error) {
+                            Asuka.showSnackBar(
+                              SnackBar(content: Text(error.toString())),
+                            );
+                          }
+                        },
+                      );
+                    },
+                  ),
                 ],
               ),
               SettingsSection(

@@ -1,12 +1,15 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:clash_for_flutter/app/bean/clash_for_me_config_bean.dart';
 import 'package:clash_for_flutter/app/bean/profile_base_bean.dart';
+import 'package:clash_for_flutter/app/bean/profile_url_bean.dart';
 import 'package:clash_for_flutter/app/exceptions/message_exception.dart';
 import 'package:clash_for_flutter/app/source/core_config.dart';
 import 'package:clash_for_flutter/app/source/request.dart';
 import 'package:clash_for_flutter/app/utils/constants.dart';
+import 'package:clash_for_flutter/app/utils/app_json.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:mobx/mobx.dart';
 import 'package:path/path.dart' hide context;
@@ -21,6 +24,8 @@ final proxyManager = ProxyManager();
 abstract class AppConfigBase with Store {
   final _request = Modular.get<Request>();
   final _core = Modular.get<CoreConfig>();
+  Timer? _subscriptionTimer;
+  bool _checkingSubscriptions = false;
 
   final String profilesPath =
       "${Constants.homeDir.path}${Constants.profilesPath}";
@@ -50,7 +55,9 @@ abstract class AppConfigBase with Store {
 
   Future<void> init() async {
     await _initConfig();
+    _request.setSubscriptionUserAgent(clashForMe.subscriptionUserAgent);
     _initReaction();
+    _startSubscriptionUpdates();
   }
 
   @action
@@ -106,6 +113,7 @@ abstract class AppConfigBase with Store {
     String? mmdbUrl,
     String? delayTestUrl,
     bool? tunIf,
+    String? subscriptionUserAgent,
   }) {
     clashForMe = clashForMe.copyWith(
       selectedFile: selectedFile,
@@ -113,7 +121,122 @@ abstract class AppConfigBase with Store {
       mmdbUrl: mmdbUrl,
       delayTestUrl: delayTestUrl,
       tunIf: tunIf,
+      subscriptionUserAgent: subscriptionUserAgent,
     );
+  }
+
+  Future<void> setSubscriptionUserAgent(String value) async {
+    final normalized = value.trim();
+    if (normalized.isEmpty || normalized.contains(RegExp(r'[\r\n]'))) {
+      throw MessageException('请输入有效的订阅 User-Agent');
+    }
+    _request.setSubscriptionUserAgent(normalized);
+    runInAction(() {
+      clashForMe = clashForMe.copyWith(subscriptionUserAgent: normalized);
+    });
+    await clashForMe.saveFile();
+  }
+
+  bool hasSubscriptionUrl(String url, {String? exceptFile}) {
+    final normalized = url.trim();
+    return profiles.whereType<ProfileURL>().any(
+      (profile) =>
+          profile.file != exceptFile && profile.url.trim() == normalized,
+    );
+  }
+
+  void _startSubscriptionUpdates() {
+    _subscriptionTimer?.cancel();
+    _subscriptionTimer = Timer.periodic(
+      const Duration(minutes: 15),
+      (_) => unawaited(checkSubscriptionUpdates()),
+    );
+    unawaited(
+      Future<void>.delayed(
+        const Duration(seconds: 10),
+        checkSubscriptionUpdates,
+      ),
+    );
+  }
+
+  Future<void> checkSubscriptionUpdates() async {
+    if (_checkingSubscriptions) return;
+    _checkingSubscriptions = true;
+    try {
+      final now = DateTime.now();
+      final expired = profiles
+          .whereType<ProfileURL>()
+          .where(
+            (profile) =>
+                profile.interval > 0 &&
+                now.isAfter(
+                  profile.time.add(Duration(hours: profile.interval)),
+                ),
+          )
+          .toList();
+      for (final profile in expired) {
+        try {
+          await refreshProfile(profile);
+        } catch (error) {
+          // An automatic update must keep the last known-good subscription.
+          // The next timer tick retries it.
+          developer.log(
+            '订阅自动更新失败（${profile.name}）',
+            name: 'ClashWave.subscription',
+            error: error,
+          );
+        }
+      }
+    } finally {
+      _checkingSubscriptions = false;
+    }
+  }
+
+  /// Replaces [old] transactionally. The old file and metadata are kept until
+  /// the new file has passed validation and, when active, Mihomo accepted it.
+  Future<ProfileURL> refreshProfile(ProfileURL old) async {
+    final latest = await _request.getSubscribe(
+      profile: AppJson.cloneProfileUrl(old),
+      profilesDir: profilesPath,
+    );
+    final latestFile = File('$profilesPath/${latest.file}');
+    final oldFile = File('$profilesPath/${old.file}');
+    final active = selectedFile == old.file;
+    var activatedLatest = false;
+    try {
+      if (active) {
+        final accepted = await _request.changeConfig(latestFile.path);
+        if (!accepted) throw MessageException('Mihomo 拒绝了更新后的订阅');
+        activatedLatest = true;
+      }
+
+      final updatedProfiles = profiles.toList();
+      final index = updatedProfiles.indexWhere((item) => item.file == old.file);
+      if (index < 0) {
+        throw MessageException('订阅已被移除，已取消更新');
+      }
+      updatedProfiles[index] = latest;
+      runInAction(() {
+        clashForMe = clashForMe.copyWith(
+          selectedFile: active ? latest.file : selectedFile,
+          profiles: updatedProfiles,
+        );
+      });
+      await clashForMe.saveFile();
+
+      if (await oldFile.exists()) await oldFile.delete();
+      return latest;
+    } catch (_) {
+      if (activatedLatest && await oldFile.exists()) {
+        try {
+          await _request.changeConfig(oldFile.path);
+        } catch (_) {
+          // Preserve both the original error and the old on-disk profile.
+        }
+      }
+      if (await latestFile.exists()) await latestFile.delete();
+      rethrow;
+    }
   }
 
   Future<bool> asyncProfile() {

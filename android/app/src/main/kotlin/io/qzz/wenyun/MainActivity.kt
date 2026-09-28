@@ -2,7 +2,6 @@ package io.qzz.wenyun
 
 import android.content.Intent
 import android.net.VpnService
-import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -34,6 +33,7 @@ class MainActivity : FlutterActivity() {
                         stopVpn()
                         result.success(true)
                     }
+                    "isVpnRunning" -> result.success(ClashService.isRunning)
                     "startService" -> {
                         MihomoCore.start(this) { success, error ->
                             runOnUiThread {
@@ -54,7 +54,9 @@ class MainActivity : FlutterActivity() {
                     }
                     "startRust" -> {
                         // Mihomo exposes its Clash-compatible controller directly.
-                        result.success(call.argument<String>("addr").orEmpty())
+                        result.success(
+                            MihomoCore.resolveController(call.argument<String>("addr").orEmpty()),
+                        )
                     }
                     "verifyMMDB" -> {
                         val file = File(call.argument<String>("path").orEmpty())
@@ -94,14 +96,11 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun startVpn() {
-        ContextCompat.startForegroundService(
-            this,
-            Intent(this, ClashService::class.java).setAction(ClashService.ACTION_CONNECT),
-        )
+        ClashService.start(this)
     }
 
     private fun stopVpn() {
-        startService(Intent(this, ClashService::class.java).setAction(ClashService.ACTION_DISCONNECT))
+        ClashService.stop(this)
     }
 
     @Deprecated("Deprecated in Android")

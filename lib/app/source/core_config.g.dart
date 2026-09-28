@@ -39,23 +39,13 @@ mixin _$CoreConfig on CoreConfigBase, Store {
     });
   }
 
-  late final _$asyncConfigAsyncAction = AsyncAction(
-    'CoreConfigBase.asyncConfig',
+  late final _$setStateAsyncAction = AsyncAction(
+    'CoreConfigBase.setState',
     context: context,
   );
 
   @override
-  Future<void> asyncConfig() {
-    return _$asyncConfigAsyncAction.run(() => super.asyncConfig());
-  }
-
-  late final _$CoreConfigBaseActionController = ActionController(
-    name: 'CoreConfigBase',
-    context: context,
-  );
-
-  @override
-  dynamic setState({
+  Future setState({
     int? redirPort,
     int? tproxyPort,
     int? mixedPort,
@@ -64,11 +54,8 @@ mixin _$CoreConfig on CoreConfigBase, Store {
     LogLevel? logLevel,
     bool? ipv6,
   }) {
-    final _$actionInfo = _$CoreConfigBaseActionController.startAction(
-      name: 'CoreConfigBase.setState',
-    );
-    try {
-      return super.setState(
+    return _$setStateAsyncAction.run(
+      () => super.setState(
         redirPort: redirPort,
         tproxyPort: tproxyPort,
         mixedPort: mixedPort,
@@ -76,10 +63,18 @@ mixin _$CoreConfig on CoreConfigBase, Store {
         mode: mode,
         logLevel: logLevel,
         ipv6: ipv6,
-      );
-    } finally {
-      _$CoreConfigBaseActionController.endAction(_$actionInfo);
-    }
+      ),
+    );
+  }
+
+  late final _$asyncConfigAsyncAction = AsyncAction(
+    'CoreConfigBase.asyncConfig',
+    context: context,
+  );
+
+  @override
+  Future<void> asyncConfig() {
+    return _$asyncConfigAsyncAction.run(() => super.asyncConfig());
   }
 
   @override

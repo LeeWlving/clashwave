@@ -33,6 +33,9 @@ class ClashForMeConfig {
   /// 延迟测试地址
   String delayTestUrl;
 
+  /// 下载订阅时发送的 User-Agent。
+  String subscriptionUserAgent;
+
   /// 是否以 Tun 模式运行
   bool? tunIf;
 
@@ -42,6 +45,7 @@ class ClashForMeConfig {
     required this.mmdbUrl,
     this.geodataBaseUrl = DefaultConfigValue.geodataBaseUrl,
     required this.delayTestUrl,
+    this.subscriptionUserAgent = DefaultConfigValue.subscriptionUserAgent,
     this.tunIf,
   });
 
@@ -51,6 +55,7 @@ class ClashForMeConfig {
     String? mmdbUrl,
     String? geodataBaseUrl,
     String? delayTestUrl,
+    String? subscriptionUserAgent,
     bool? tunIf,
   }) {
     var config = ClashForMeConfig(
@@ -59,6 +64,8 @@ class ClashForMeConfig {
       mmdbUrl: mmdbUrl ?? this.mmdbUrl,
       geodataBaseUrl: geodataBaseUrl ?? this.geodataBaseUrl,
       delayTestUrl: delayTestUrl ?? this.delayTestUrl,
+      subscriptionUserAgent:
+          subscriptionUserAgent ?? this.subscriptionUserAgent,
       tunIf: tunIf ?? this.tunIf,
     );
     // 对当前选择的订阅进行优化
@@ -85,6 +92,7 @@ class ClashForMeConfig {
     profiles: [],
     mmdbUrl: DefaultConfigValue.mmdbUrl,
     delayTestUrl: DefaultConfigValue.delayTestUrl,
+    subscriptionUserAgent: DefaultConfigValue.subscriptionUserAgent,
   );
 
   factory ClashForMeConfig.formFile() {
@@ -100,6 +108,10 @@ class ClashForMeConfig {
         cfm['mmdb-url'] = DefaultConfigValue.mmdbUrl;
       }
       cfm.putIfAbsent("delay-test-url", () => DefaultConfigValue.delayTestUrl);
+      cfm.putIfAbsent(
+        "subscription-user-agent",
+        () => DefaultConfigValue.subscriptionUserAgent,
+      );
 
       return AppJson.fromMap<ClashForMeConfig>(cfm)!;
     }

@@ -1,0 +1,57 @@
+name: ClashWave Android release
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+env:
+  FLUTTER_VERSION: '3.47.5'
+  MIHOMO_ANDROID_WRAPPER_VERSION: '0.3.5'
+  MIHOMO_ANDROID_AAR_SHA256: '41ddcce67de37f406377798c5adbc7ff925e6cd9cadbef3f187da3a03e564176'
+
+jobs:
+  android:
+    runs-on: [ubuntu-24, x64, medium]
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: checkout
+      - name: Setup Java
+        uses: setup-java
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Flutter and verify dependencies
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
+            --output /tmp/flutter.tar.xz
+          tar -xf /tmp/flutter.tar.xz -C /tmp
+          export PATH="/tmp/flutter/bin:$PATH"
+          flutter config --no-analytics
+          flutter pub get --enforce-lockfile
+          flutter analyze --no-fatal-infos
+          flutter test
+      - name: Download Mihomo and build signed AAB
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          export PATH="/tmp/flutter/bin:$PATH"
+          file="android/app/libs/libmihomo-android-v${MIHOMO_ANDROID_WRAPPER_VERSION}.aar"
+          curl --fail --location --retry 3 \
+            "https://github.com/oviron/libmihomo-android/releases/download/v${MIHOMO_ANDROID_WRAPPER_VERSION}/libmihomo-android-v${MIHOMO_ANDROID_WRAPPER_VERSION}.aar" \
+            --output "$file"
+          echo "${MIHOMO_ANDROID_AAR_SHA256}  $file" | sha256sum --check --strict
+          bash scripts/configure-android-signing.sh
+          flutter build appbundle --release --no-pub
+      - name: Upload AAB
+        uses: upload-artifact
+        with:
+          name: ClashWave-android-aab
+          path: build/app/outputs/bundle/release/app-release.aab

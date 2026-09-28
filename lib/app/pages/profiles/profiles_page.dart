@@ -7,6 +7,7 @@ import 'package:clash_for_flutter/app/component/sys_app_bar.dart';
 import 'package:clash_for_flutter/app/pages/profiles/profile_item.dart';
 import 'package:clash_for_flutter/app/pages/profiles/profiles_controller.dart';
 import 'package:clash_for_flutter/app/source/app_config.dart';
+import 'package:clash_for_flutter/app/utils/app_json.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -205,7 +206,8 @@ class _ProfilesPageState extends State<ProfilesPage> {
       dialogInputValue(
         label: "URL",
         initialValue: profile.url,
-        onOk: (v) => _controller.edit(profile..url = v),
+        onOk: (v) =>
+            _controller.edit(AppJson.cloneProfileUrl(profile)..url = v.trim()),
       );
     }
   }
