@@ -280,29 +280,63 @@ class _ProfilesPageState extends State<ProfilesPage> {
       appBar: const SysAppBar(title: Text('订阅')),
       body: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
-          final crossAxisCount = constraints.maxWidth < 460 ? 1 : 2;
+          final crossAxisCount = constraints.maxWidth < 720 ? 1 : 2;
 
           return Observer(
-            builder: (_) => MasonryGridView.count(
-              crossAxisCount: crossAxisCount,
-              mainAxisSpacing: 20,
-              crossAxisSpacing: 20,
-              padding: const EdgeInsets.all(20),
-              itemCount: _config.profiles.length,
-              itemBuilder: (BuildContext context, int index) {
-                return _buildPanel(index);
-              },
-            ),
+            builder: (_) => _config.profiles.isEmpty
+                ? const _EmptyProfiles()
+                : MasonryGridView.count(
+                    controller: _scrollController,
+                    crossAxisCount: crossAxisCount,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 88),
+                    itemCount: _config.profiles.length,
+                    itemBuilder: (BuildContext context, int index) {
+                      return _buildPanel(index);
+                    },
+                  ),
           );
         },
       ),
       floatingActionButton: _showFab
-          ? FloatingActionButton(
+          ? FloatingActionButton.extended(
               tooltip: "新增",
               onPressed: showAddProfiles,
-              child: const Icon(Icons.add),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('添加订阅'),
             )
           : null,
+    );
+  }
+}
+
+class _EmptyProfiles extends StatelessWidget {
+  const _EmptyProfiles();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.layers_outlined, size: 52, color: scheme.outline),
+            const SizedBox(height: 16),
+            Text('还没有订阅', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              '点击右下角，从 URL 或本地配置文件添加。',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

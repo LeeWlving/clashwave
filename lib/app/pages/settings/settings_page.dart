@@ -252,12 +252,37 @@ class _SettingsPageState extends State<SettingsPage> {
 
           return SettingsList(
             platform: DevicePlatform.macOS,
+            contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+            lightTheme: const SettingsThemeData(
+              settingsListBackground: Color(0xFFF4F7F7),
+              settingsSectionBackground: Colors.white,
+              dividerColor: Color(0xFFD9E2E4),
+              tileHighlightColor: Color(0xFFE4EBED),
+              titleTextColor: Color(0xFF52666C),
+              trailingTextColor: Color(0xFF52666C),
+              leadingIconsColor: Color(0xFF176B78),
+              settingsTileTextColor: Color(0xFF172429),
+              tileDescriptionTextColor: Color(0xFF52666C),
+              titleTextStyle: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            darkTheme: const SettingsThemeData(
+              settingsListBackground: Color(0xFF0E1618),
+              settingsSectionBackground: Color(0xFF151F22),
+              dividerColor: Color(0xFF314044),
+              tileHighlightColor: Color(0xFF253438),
+              titleTextColor: Color(0xFFA8B9BD),
+              trailingTextColor: Color(0xFFA8B9BD),
+              leadingIconsColor: Color(0xFF75C6D0),
+              settingsTileTextColor: Color(0xFFEAF1F2),
+              tileDescriptionTextColor: Color(0xFFA8B9BD),
+              titleTextStyle: TextStyle(fontWeight: FontWeight.w600),
+            ),
             sections: [
               SettingsSection(
                 title: const Text('Clash 代理端口'),
                 tiles: <SettingsTile>[
                   SettingsTile.navigation(
-                    title: const Text('Http & Socks'),
+                    title: const Text('HTTP 与 SOCKS'),
                     value: Text(mixedPort.toString()),
                     onPressed: (_) {
                       setValue(
@@ -346,7 +371,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     },
                   ),
                   SettingsTile.navigation(
-                    title: const Text("延迟测试Url"),
+                    title: const Text("延迟测试 URL"),
                     value: Text(delayTestUrl),
                     onPressed: (_) {
                       setValue(

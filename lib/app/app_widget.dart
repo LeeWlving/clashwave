@@ -2,6 +2,7 @@ import 'package:asuka/asuka.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:clash_for_flutter/app/theme/clashwave_theme.dart';
 
 class AppWidget extends StatefulWidget {
   const AppWidget({super.key});
@@ -29,10 +30,9 @@ class _AppWidgetState extends State<AppWidget> {
         scriptCode: 'Hans',
         countryCode: "CN",
       ),
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF49616D),
-      ),
+      theme: ClashWaveTheme.light,
+      darkTheme: ClashWaveTheme.dark,
+      themeMode: ThemeMode.system,
       routerConfig: Modular.routerConfig,
       builder: Asuka.builder,
       // navigatorObservers: [Asuka.asukaHeroController],

@@ -272,6 +272,48 @@ class CoreControl {
     await _stopDirectCore();
   }
 
+  /// Restarts Mihomo without restarting the Flutter GUI.
+  ///
+  /// An installed Windows/macOS service is restarted through its native
+  /// service manager. Otherwise the GUI-owned child process is replaced.
+  static Future<void> restartService() async {
+    if (!Constants.isDesktop) {
+      throw UnsupportedError('当前平台不支持从托盘重启内核');
+    }
+
+    if (supportsDesktopService && await isDesktopServiceInstalled()) {
+      if (Platform.isWindows) {
+        final helper = _windowsServiceExecutable();
+        if (!helper.existsSync()) {
+          throw StateError('Windows service helper not found: ${helper.path}');
+        }
+        final stopped = await Process.run(helper.path, ['--stop']);
+        if (stopped.exitCode != 0) {
+          throw StateError('Windows 内核服务停止失败（代码 ${stopped.exitCode}）');
+        }
+        final started = await Process.run(helper.path, ['--start']);
+        if (started.exitCode != 0) {
+          throw StateError('Windows 内核服务启动失败（代码 ${started.exitCode}）');
+        }
+      } else {
+        await _runMacElevated(
+          '/bin/launchctl kickstart -k system/$_macLaunchDaemonLabel',
+          'macOS 内核服务重启失败',
+        );
+      }
+      if (!await _waitForController()) {
+        throw StateError('重启后无法连接 Mihomo 控制接口');
+      }
+      _desktopPrivileged = true;
+      return;
+    }
+
+    await _stopDirectCore();
+    if (!await _startDesktopCore() || !await _waitForController()) {
+      throw StateError('Mihomo 内核重启失败');
+    }
+  }
+
   static File _desktopExecutable() {
     final executableName = Platform.isWindows ? 'mihomo.exe' : 'mihomo';
     return File(

@@ -116,10 +116,13 @@ class _LogsPageState extends State<LogsPage> {
         ],
       ),
       body: Container(
-        margin: const EdgeInsets.all(6),
+        margin: const EdgeInsets.fromLTRB(12, 6, 12, 12),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: Theme.of(context).primaryColor.withAlpha(20),
+          borderRadius: BorderRadius.circular(16),
+          color: Theme.of(context).colorScheme.surface,
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
         ),
         child: ListView.builder(
           controller: _controller,
@@ -131,6 +134,10 @@ class _LogsPageState extends State<LogsPage> {
               padding: const EdgeInsets.all(8.0),
               child: SelectableText(
                 "[${DateFormat("yyyy/MM/dd HH:mm:ss").format(data.time!)}] [${data.type.value.toUpperCase()}] ${data.payload}",
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  height: 1.5,
+                  fontFamily: 'monospace',
+                ),
               ),
             );
           },

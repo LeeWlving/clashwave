@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:clash_for_flutter/app/theme/clashwave_theme.dart';
 
 /// Renders a window even when native core initialization fails.
 class StartupApp extends StatefulWidget {
@@ -29,10 +30,9 @@ class _StartupAppState extends State<StartupApp> {
         }
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            useMaterial3: true,
-            colorSchemeSeed: const Color(0xFF49616D),
-          ),
+          theme: ClashWaveTheme.light,
+          darkTheme: ClashWaveTheme.dark,
+          themeMode: ThemeMode.system,
           home: Scaffold(
             body: Center(
               child: Padding(

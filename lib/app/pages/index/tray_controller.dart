@@ -6,13 +6,16 @@ import 'package:clash_for_flutter/app/enum/type_enum.dart';
 import 'package:clash_for_flutter/app/pages/router.dart';
 import 'package:clash_for_flutter/app/source/app_config.dart';
 import 'package:clash_for_flutter/app/source/core_config.dart';
+import 'package:clash_for_flutter/app/source/logs_subscription.dart';
+import 'package:clash_for_flutter/app/source/request.dart';
 import 'package:clash_for_flutter/app/utils/constants.dart';
 import 'package:clash_for_flutter/core_control.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:mobx/mobx.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:system_tray/system_tray.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 
 /// Windows/macOS 托盘菜单与运行状态图标。
@@ -25,12 +28,15 @@ class TrayController {
   final SystemTray _tray = SystemTray();
   final AppConfig _config = Modular.get<AppConfig>();
   final CoreConfig _core = Modular.get<CoreConfig>();
+  final Request _request = Modular.get<Request>();
+  final LogsSubscription _logs = Modular.get<LogsSubscription>();
   final List<ReactionDisposer> _reactions = [];
 
   bool _initialized = false;
   bool _lightMode = false;
   bool? _lastEnabled;
   int _refreshGeneration = 0;
+  String _appVersion = '—';
   PageController? _pageController;
 
   void attachPageController(PageController controller) {
@@ -48,6 +54,8 @@ class TrayController {
   }
 
   Future<void> _initialize() async {
+    final package = await PackageInfo.fromPlatform();
+    _appVersion = package.version;
     _reactions.addAll([
       reaction((_) => _config.systemProxy, (_) => unawaited(_refreshTray())),
       reaction((_) => _core.clash.mode, (_) => unawaited(_refreshTray())),
@@ -158,18 +166,25 @@ class TrayController {
         label: '更多',
         children: [
           MenuItemLabel(
-            label: '设置',
-            onClicked: (_) => unawaited(_showPage('/settings')),
+            label: '复制环境变量',
+            onClicked: (_) => unawaited(_copyEnvironmentVariables()),
           ),
           MenuItemLabel(
-            label: '官方网站',
-            onClicked: (_) => unawaited(_openUrl(Constants.homeUrl)),
+            label: '关闭所有连接',
+            onClicked: (_) => unawaited(
+              _runAction(() async => _request.closeAllConnections()),
+            ),
           ),
           MenuItemLabel(
-            label: '检查更新',
-            onClicked: (_) =>
-                unawaited(_openUrl('${Constants.sourceUrl}/releases/latest')),
+            label: '重启 Mihomo 内核',
+            onClicked: (_) => unawaited(_restartCore()),
           ),
+          MenuItemLabel(
+            label: '重启应用',
+            onClicked: (_) => unawaited(_restartApp()),
+          ),
+          MenuSeparator(),
+          MenuItemLabel(label: 'ClashWave 版本 $_appVersion', enabled: false),
         ],
       ),
       MenuSeparator(),
@@ -225,6 +240,62 @@ class TrayController {
     await _refreshTray();
   }
 
+  Future<void> _copyEnvironmentVariables() async {
+    await _runAction(() async {
+      final port = await _request.ensureMixedPort();
+      final http = 'http://${Constants.localhost}:$port';
+      final socks = 'socks5://${Constants.localhost}:$port';
+      final command = Platform.isWindows
+          ? '\$env:HTTP_PROXY="$http"; \$env:HTTPS_PROXY="$http"; '
+                '\$env:ALL_PROXY="$socks"'
+          : 'export HTTP_PROXY="$http" HTTPS_PROXY="$http" '
+                'ALL_PROXY="$socks"';
+      await Clipboard.setData(ClipboardData(text: command));
+    });
+  }
+
+  Future<void> _restartCore() async {
+    await _runAction(() async {
+      await CoreControl.restartService();
+      _logs.reconnect();
+      await _core.asyncConfig();
+    });
+  }
+
+  Future<void> _restartApp() async {
+    try {
+      await CoreControl.shutdown();
+      final executable = File(Platform.resolvedExecutable);
+      if (Platform.isWindows) {
+        String quote(String value) => value.replaceAll("'", "''");
+        final command =
+            "Start-Sleep -Milliseconds 400; Start-Process -FilePath '${quote(executable.path)}' "
+            "-WorkingDirectory '${quote(executable.parent.path)}'";
+        await Process.start('powershell.exe', [
+          '-NoProfile',
+          '-NonInteractive',
+          '-WindowStyle',
+          'Hidden',
+          '-Command',
+          command,
+        ], mode: ProcessStartMode.detached);
+      } else {
+        await Process.start('/bin/sh', [
+          '-c',
+          'sleep 0.4; exec ${_shellQuote(executable.path)}',
+        ], mode: ProcessStartMode.detached);
+      }
+      await _tray.destroy();
+      await windowManager.setPreventClose(false);
+      await windowManager.destroy();
+    } catch (error) {
+      await _showWindow();
+      Asuka.showSnackBar(SnackBar(content: Text('重启应用失败：$error')));
+    }
+  }
+
+  String _shellQuote(String value) => "'${value.replaceAll("'", "'\\''")}'";
+
   Future<void> _runAction(Future<void> Function() action) async {
     try {
       await action();
@@ -261,11 +332,6 @@ class TrayController {
     } else if (Platform.isMacOS) {
       await Process.run('open', [path]);
     }
-  }
-
-  Future<void> _openUrl(String url) async {
-    final opened = await launchUrl(Uri.parse(url));
-    if (!opened) throw StateError('无法打开 $url');
   }
 
   Future<void> _exit() async {

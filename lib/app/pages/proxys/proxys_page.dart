@@ -133,28 +133,66 @@ class _ProxysPageState extends State<ProxysPage> {
                       var list = _controller.getShowList(group);
                       return ListView.separated(
                         controller: _scrollController,
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 88),
                         itemBuilder: (_, i) {
                           var show = list[i];
                           var name = show.name;
-                          var delay = show.delay < 0
+                          final selected = groupNow == name;
+                          final delay = show.delay < 0
                               ? null
-                              : Text(
-                                  show.delay == 0
-                                      ? "..."
-                                      : show.delay.toString(),
+                              : Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 9,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerHigh,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    show.delay == 0
+                                        ? '测试中'
+                                        : '${show.delay} ms',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.labelSmall,
+                                  ),
                                 );
                           return ListTile(
                             visualDensity: const VisualDensity(
                               vertical: VisualDensity.minimumDensity,
                             ),
-                            selected: groupNow == name,
+                            minTileHeight: 56,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            selectedTileColor: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer,
+                            selected: selected,
+                            leading: selected
+                                ? Icon(
+                                    Icons.check_circle_rounded,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  )
+                                : const Icon(Icons.circle_outlined, size: 18),
                             title: Text(
                               name,
-                              style: const TextStyle(fontSize: 14),
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    fontWeight: selected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                  ),
                             ),
                             subtitle: Text(
                               show.subTitle,
-                              style: const TextStyle(fontSize: 12),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             trailing: delay,
                             onTap: () => _controller.select(
@@ -163,12 +201,12 @@ class _ProxysPageState extends State<ProxysPage> {
                             ),
                           );
                         },
-                        separatorBuilder: (_, __) => const Divider(height: 5),
+                        separatorBuilder: (_, _) => const SizedBox(height: 4),
                         itemCount: list.length,
                       );
                     }).toList(),
                   )
-                : const Center(child: Text("暂无可选代理节点")),
+                : const _EmptyProxies(),
             floatingActionButton: _showFab
                 ? Builder(
                     builder: (cxt) {
@@ -188,6 +226,32 @@ class _ProxysPageState extends State<ProxysPage> {
           ),
         );
       },
+    );
+  }
+}
+
+class _EmptyProxies extends StatelessWidget {
+  const _EmptyProxies();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.cloud_off_outlined, size: 48, color: scheme.outline),
+          const SizedBox(height: 14),
+          Text('暂无可选节点', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 6),
+          Text(
+            '请先添加并选择一个有效订阅',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ],
+      ),
     );
   }
 }

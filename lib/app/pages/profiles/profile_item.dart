@@ -5,16 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-class SelectableCard extends StatelessWidget {
-  final bool selected;
-  final ProfileShow profile;
-  final bool isLoading;
-  final VoidCallback onTap;
-  final VoidCallback onUpdate;
-  final VoidCallback onEdit;
-  final VoidCallback onChangeName;
-  final VoidCallback onRemove;
+enum _ProfileAction { rename, edit, remove }
 
+class SelectableCard extends StatelessWidget {
   const SelectableCard({
     super.key,
     required this.profile,
@@ -27,170 +20,205 @@ class SelectableCard extends StatelessWidget {
     required this.onRemove,
   });
 
+  final bool selected;
+  final ProfileShow profile;
+  final bool isLoading;
+  final VoidCallback onTap;
+  final VoidCallback onUpdate;
+  final VoidCallback onEdit;
+  final VoidCallback onChangeName;
+  final VoidCallback onRemove;
+
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: const BorderRadius.all(Radius.circular(10)),
-      onTap: () {
-        onTap();
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: selected ? Theme.of(context).colorScheme.primary : null,
-        ),
-        child: Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              brightness: Theme.of(context).brightness,
-              onSurface: selected ? Colors.white : null,
-              primary: selected ? Colors.orange : null,
-            ),
-            textSelectionTheme: TextSelectionThemeData(
-              selectionColor: selected ? Colors.white : null,
-            ),
+    final scheme = Theme.of(context).colorScheme;
+    final used = profile.use;
+    final total = profile.total;
+    final hasUsage = used != null && total != null && total > 0;
+    final progress = hasUsage ? (used / total).clamp(0.0, 1.0) : null;
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '${profile.title}，${selected ? '当前订阅' : '未选择'}',
+      child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(
+            color: selected ? scheme.primary : scheme.outlineVariant,
+            width: selected ? 1.6 : 1,
           ),
-          child: Builder(
-            builder: (ctx) {
-              List<Widget> list = [
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 17, 10, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      profile.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Theme.of(ctx).textSelectionTheme.selectionColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? scheme.primaryContainer
+                            : scheme.surfaceContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        profile.type == ProfileType.URL
+                            ? Icons.link_rounded
+                            : Icons.description_outlined,
+                        color: selected
+                            ? scheme.primary
+                            : scheme.onSurfaceVariant,
                       ),
                     ),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 4, left: 8),
-                        child: Text(
-                          maxLines: 1,
-                          profile.type.value,
-                          style: Theme.of(ctx).textTheme.titleSmall?.copyWith(
-                            color: Theme.of(
-                              ctx,
-                            ).textSelectionTheme.selectionColor,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  profile.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
+                                ),
+                              ),
+                              if (selected) ...[
+                                const SizedBox(width: 8),
+                                Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 19,
+                                  color: scheme.primary,
+                                  semanticLabel: '当前订阅',
+                                ),
+                              ],
+                            ],
                           ),
-                        ),
-                      ),
-                    ),
-                    Text(
-                      timeago.format(profile.lastUpdate, locale: "zh_cn"),
-                      style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                        color: Theme.of(ctx).textSelectionTheme.selectionColor,
+                          const SizedBox(height: 3),
+                          Text(
+                            '${profile.type.value} · ${timeago.format(profile.lastUpdate, locale: 'zh_cn')}',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ];
-
-              List<Widget> expireRow = [];
-              if (profile.expire != null) {
-                expireRow.add(
-                  Text(
-                    DateFormat("yyyy/MM/dd HH:mm").format(profile.expire!),
-                    style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(ctx).textSelectionTheme.selectionColor,
+                if (hasUsage) ...[
+                  const SizedBox(height: 20),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 6,
+                      backgroundColor: scheme.surfaceContainerHigh,
                     ),
                   ),
-                );
-              }
-              if (profile.use != null && profile.total != null) {
-                list.addAll([
-                  const SizedBox(height: 16.0),
-                  LinearProgressIndicator(value: profile.use! / profile.total!),
-                ]);
-                expireRow.add(const SizedBox());
-                expireRow.add(
-                  Text(
-                    '${dataformat(profile.use!)}/${dataformat(profile.total!)}',
-                    style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(ctx).textSelectionTheme.selectionColor,
-                    ),
-                  ),
-                );
-              }
-
-              if (expireRow.isNotEmpty) {
-                list.add(const SizedBox(height: 8.0));
-                list.add(
+                  const SizedBox(height: 9),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: expireRow,
+                    children: [
+                      Text(
+                        '已用 ${dataformat(used)} / ${dataformat(total)}',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                      if (profile.expire != null)
+                        Text(
+                          '到期 ${DateFormat('yyyy/MM/dd').format(profile.expire!)}',
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
+                    ],
                   ),
-                );
-              }
-
-              var btnList = [
-                IconButton(
-                  tooltip: "修改名称",
-                  icon: Icon(
-                    Icons.edit_note_outlined,
-                    color: Theme.of(ctx).textSelectionTheme.selectionColor,
-                  ),
-                  onPressed: () => onChangeName(),
-                ),
-                IconButton(
-                  tooltip: "修改源",
-                  icon: Icon(
-                    Icons.code_outlined,
-                    color: Theme.of(ctx).textSelectionTheme.selectionColor,
-                  ),
-                  onPressed: () => onEdit(),
-                ),
-                IconButton(
-                  tooltip: "移除",
-                  icon: Icon(
-                    Icons.delete_outline_outlined,
-                    color: Theme.of(ctx).textSelectionTheme.selectionColor,
-                  ),
-                  onPressed: () => onRemove(),
-                ),
-              ];
-              if (profile.type == ProfileType.URL) {
-                btnList.insert(
-                  0,
-                  IconButton(
-                    tooltip: "更新",
-                    icon: Icon(
-                      Icons.refresh_rounded,
-                      color: Theme.of(ctx).textSelectionTheme.selectionColor,
+                ] else if (profile.expire != null) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    '到期 ${DateFormat('yyyy/MM/dd HH:mm').format(profile.expire!)}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
                     ),
-                    onPressed: () => onUpdate(),
                   ),
-                );
-              }
-
-              return Container(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    ...list,
-                    const SizedBox(height: 3.0),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: isLoading
-                          ? [
-                              const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(),
-                              ),
-                            ]
-                          : btnList,
-                    ),
-                    // 添加蒙层及进度条
+                ],
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (isLoading)
+                      const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    else ...[
+                      if (profile.type == ProfileType.URL)
+                        IconButton(
+                          tooltip: '更新订阅',
+                          onPressed: onUpdate,
+                          icon: const Icon(Icons.refresh_rounded),
+                        ),
+                      PopupMenuButton<_ProfileAction>(
+                        tooltip: '更多操作',
+                        icon: const Icon(Icons.more_horiz_rounded),
+                        onSelected: (action) {
+                          switch (action) {
+                            case _ProfileAction.rename:
+                              onChangeName();
+                            case _ProfileAction.edit:
+                              onEdit();
+                            case _ProfileAction.remove:
+                              onRemove();
+                          }
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(
+                            value: _ProfileAction.rename,
+                            child: ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(Icons.edit_note_outlined),
+                              title: Text('重命名'),
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: _ProfileAction.edit,
+                            child: ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(Icons.code_outlined),
+                              title: Text('修改来源'),
+                            ),
+                          ),
+                          PopupMenuDivider(),
+                          PopupMenuItem(
+                            value: _ProfileAction.remove,
+                            child: ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(Icons.delete_outline_rounded),
+                              title: Text('移除'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
-              );
-            },
+              ],
+            ),
           ),
         ),
       ),
