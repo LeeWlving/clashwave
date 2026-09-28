@@ -1,10 +1,14 @@
+import 'dart:io';
+
 import 'package:asuka/asuka.dart';
 import 'package:clash_for_flutter/app/component/sys_app_bar.dart';
 import 'package:clash_for_flutter/app/enum/type_enum.dart';
 import 'package:clash_for_flutter/app/source/app_config.dart';
 import 'package:clash_for_flutter/app/source/core_config.dart';
 import 'package:clash_for_flutter/app/source/request.dart';
+import 'package:clash_for_flutter/app/source/logs_subscription.dart';
 import 'package:clash_for_flutter/app/utils/constants.dart';
+import 'package:clash_for_flutter/core_control.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_modular/flutter_modular.dart';
@@ -25,6 +29,8 @@ class _SettingsPageState extends State<SettingsPage> {
   final _core = Modular.get<CoreConfig>();
   final _request = Modular.get<Request>();
   String _version = "1.2.0";
+  bool? _serviceInstalled;
+  bool _serviceBusy = false;
 
   @override
   void initState() {
@@ -34,6 +40,58 @@ class _SettingsPageState extends State<SettingsPage> {
         setState(() => _version = info.version);
       }
     });
+    if (CoreControl.supportsDesktopService) {
+      CoreControl.isDesktopServiceInstalled().then((installed) {
+        if (mounted) setState(() => _serviceInstalled = installed);
+      });
+    }
+  }
+
+  Future<void> _toggleDesktopService() async {
+    if (_serviceBusy) return;
+    final installed = _serviceInstalled ?? false;
+    if (installed) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('卸载特权内核服务？'),
+          content: const Text('卸载后将回到普通权限内核，TUN 模式会停止。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('卸载'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
+    setState(() => _serviceBusy = true);
+    try {
+      if (installed) {
+        await _core.closeTun();
+        await CoreControl.uninstallDesktopService();
+      } else {
+        await CoreControl.installDesktopService();
+      }
+      Modular.get<LogsSubscription>().reconnect();
+      await _core.asyncConfig();
+      if (mounted) setState(() => _serviceInstalled = !installed);
+      Asuka.showSnackBar(
+        SnackBar(content: Text(installed ? '特权内核服务已卸载' : '特权内核服务已安装')),
+      );
+    } catch (error) {
+      Asuka.showSnackBar(SnackBar(content: Text(error.toString())));
+      final current = await CoreControl.isDesktopServiceInstalled();
+      if (mounted) setState(() => _serviceInstalled = current);
+    } finally {
+      if (mounted) setState(() => _serviceBusy = false);
+    }
   }
 
   void checkUpdate() async {
@@ -325,6 +383,30 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ],
               ),
+              if (Platform.isWindows || Platform.isMacOS)
+                SettingsSection(
+                  title: const Text('内核服务'),
+                  tiles: [
+                    SettingsTile.navigation(
+                      title: Text(
+                        Platform.isWindows ? 'Windows 特权内核服务' : 'macOS 特权内核服务',
+                      ),
+                      description: const Text(
+                        'GUI 保持普通权限；内核由系统服务运行，控制接口使用随机令牌鉴权',
+                      ),
+                      value: Text(
+                        _serviceBusy
+                            ? '处理中'
+                            : _serviceInstalled == null
+                            ? '检查中'
+                            : _serviceInstalled!
+                            ? '已安装'
+                            : '未安装',
+                      ),
+                      onPressed: (_) => _toggleDesktopService(),
+                    ),
+                  ],
+                ),
               SettingsSection(
                 title: const Text("关于"),
                 tiles: [

@@ -40,4 +40,41 @@ Name: "{autoprograms}\ClashWave"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\ClashWave"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,ClashWave}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,ClashWave}"; Flags: nowait postinstall skipifsilent runasoriginaluser
+
+[UninstallRun]
+Filename: "{app}\clashwave_service.exe"; Parameters: "--uninstall"; Flags: runhidden waituntilterminated skipifdoesntexist
+
+[Code]
+var
+  RestartCoreService: Boolean;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+  Helper: String;
+begin
+  Result := '';
+  RestartCoreService := False;
+  Helper := ExpandConstant('{app}\clashwave_service.exe');
+  if FileExists(Helper) then
+  begin
+    if Exec(Helper, '--is-installed', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and
+       (ResultCode = 0) then
+    begin
+      RestartCoreService := True;
+      if not Exec(Helper, '--stop', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or
+         (ResultCode <> 0) then
+        Result := '无法停止现有 ClashWave 内核服务，请重试。';
+    end;
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
+begin
+  if (CurStep = ssPostInstall) and RestartCoreService then
+    Exec(ExpandConstant('{app}\clashwave_service.exe'), '--start', '', SW_HIDE,
+      ewWaitUntilTerminated, ResultCode);
+end;

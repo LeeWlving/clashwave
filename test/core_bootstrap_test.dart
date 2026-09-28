@@ -19,13 +19,16 @@ void main() {
   var port = 0;
   var patches = 0;
   String? loadedProfile;
+  String? authorization;
 
   setUpAll(() async {
     home = await Directory.systemTemp.createTemp('clashwave-core-test-');
     Constants.homeDir = home;
+    Constants.controllerSecret = 'test-controller-secret-with-32-characters';
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     Constants.rustAddr = '127.0.0.1:${server.port}';
     server.listen((request) async {
+      authorization = request.headers.value(HttpHeaders.authorizationHeader);
       request.response.headers.contentType = ContentType.json;
       if (request.method == 'GET') {
         request.response.write(jsonEncode({'mixed-port': port}));
@@ -60,6 +63,10 @@ void main() {
         YamlEditor(await file.readAsString()).parseAt(['mixed-port']).value,
         7890,
       );
+      expect(
+        YamlEditor(await file.readAsString()).parseAt(['secret']).value,
+        Constants.controllerSecret,
+      );
       await file.writeAsString('mixed-port: 17890\n');
       await Config.ensureController();
       expect(
@@ -82,11 +89,13 @@ void main() {
       const source = 'mixed-port: 0\nrules: ["MATCH,DIRECT"]\n';
       await file.writeAsString(source);
       expect(await Request().changeConfig(file.path), isTrue);
+      expect(authorization, 'Bearer ${Constants.controllerSecret}');
       final yaml = YamlEditor(loadedProfile!);
       expect(yaml.parseAt(['mixed-port']).value, 17890);
       expect(yaml.parseAt(['geox-url', 'mmdb']).value, settings.mmdbUrl);
       expect(yaml.parseAt(['geox-url', 'geosite']).value, settings.geositeUrl);
       expect(yaml.parseAt(['rules']).value, ['MATCH,DIRECT']);
+      expect(yaml.parseAt(['secret']).value, Constants.controllerSecret);
       expect(await file.readAsString(), source);
     },
   );

@@ -22,13 +22,7 @@ import 'package:clash_for_flutter/app/utils/subscription_validation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class Request {
-  final Dio _clashDio = Dio(
-    BaseOptions(
-      baseUrl: "http://${Constants.rustAddr}",
-      connectTimeout: const Duration(seconds: 3),
-      receiveTimeout: const Duration(seconds: 5),
-    ),
-  );
+  late final Dio _clashDio;
 
   final _dio = Dio(
     BaseOptions(
@@ -41,6 +35,14 @@ class Request {
   );
 
   Request() {
+    _clashDio = Dio(
+      BaseOptions(
+        baseUrl: "http://${Constants.rustAddr}",
+        headers: {'Authorization': 'Bearer ${Constants.controllerSecret}'},
+        connectTimeout: const Duration(seconds: 3),
+        receiveTimeout: const Duration(seconds: 5),
+      ),
+    );
     // The local controller must never be sent through an environment proxy.
     _clashDio.httpClientAdapter = IOHttpClientAdapter(
       createHttpClient: () => HttpClient()..findProxy = (_) => 'DIRECT',
@@ -289,16 +291,12 @@ class Request {
   }
 
   Stream<NetSpeed?> traffic() {
-    var channel = WebSocketChannel.connect(
-      Uri.parse("ws://${Constants.rustAddr}/traffic"),
-    );
+    var channel = WebSocketChannel.connect(_authenticatedWebSocket('/traffic'));
     return channel.stream.map((event) => AppJson.fromJson<NetSpeed>(event));
   }
 
   Stream<LogData?> logs(LogLevel? level) {
-    var uri = Uri.parse(
-      "ws://${Constants.rustAddr}/logs?level=${level?.value ?? ""}",
-    );
+    var uri = _authenticatedWebSocket('/logs', {'level': level?.value ?? ''});
     var channel = WebSocketChannel.connect(uri);
     return channel.stream.map(
       (event) => AppJson.fromJson<LogData>(event)?..time = DateTime.now(),
@@ -307,10 +305,21 @@ class Request {
 
   Stream<Snapshot?> connections() {
     var channel = WebSocketChannel.connect(
-      Uri.parse("ws://${Constants.rustAddr}/connections"),
+      _authenticatedWebSocket('/connections'),
     );
     return channel.stream.map((event) => AppJson.fromJson<Snapshot>(event));
   }
+
+  Uri _authenticatedWebSocket(
+    String path, [
+    Map<String, String> query = const {},
+  ]) => Uri(
+    scheme: 'ws',
+    host: Constants.localhost,
+    port: int.parse(Constants.rustAddr.split(':').last),
+    path: path,
+    queryParameters: {...query, 'token': Constants.controllerSecret},
+  );
 
   Future<bool> closeAllConnections() async {
     var resp = await _clashDio.delete<ResponseBody>("/connections");

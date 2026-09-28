@@ -103,6 +103,8 @@ jobs:
     needs: quality
     runs-on: windows-latest
     timeout-minutes: 35
+    env:
+      HAS_WINDOWS_SIGNING: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 != '' && secrets.WINDOWS_CERTIFICATE_PASSWORD != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -130,6 +132,39 @@ jobs:
         run: flutter pub get --enforce-lockfile
       - name: Build Windows release
         run: flutter build windows --release --no-pub
+      - name: Require Authenticode signing for tags
+        if: startsWith(github.ref, 'refs/tags/') && env.HAS_WINDOWS_SIGNING != 'true'
+        run: |
+          Write-Error 'Windows signing secrets are required for release tags.'
+          exit 1
+      - name: Sign Windows application and service
+        if: env.HAS_WINDOWS_SIGNING == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $certificate = Join-Path $env:RUNNER_TEMP 'clashwave-signing.pfx'
+          [IO.File]::WriteAllBytes(
+            $certificate,
+            [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64)
+          )
+          $signtool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' `
+            -Filter signtool.exe -Recurse -File |
+            Where-Object FullName -Match '\\x64\\signtool\.exe$' |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+          if ($null -eq $signtool) { throw 'signtool.exe was not found' }
+          $targets = @(
+            'build/windows/x64/runner/Release/clash_for_flutter.exe',
+            'build/windows/x64/runner/Release/clashwave_service.exe'
+          )
+          foreach ($target in $targets) {
+            & $signtool.FullName sign /fd SHA256 /td SHA256 `
+              /tr 'http://timestamp.digicert.com' /f $certificate `
+              /p $env:WINDOWS_CERTIFICATE_PASSWORD $target
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
       - name: Read app version
         id: version
         shell: pwsh
@@ -147,10 +182,34 @@ jobs:
       - name: Create installer
         shell: pwsh
         run: |
+          $language = 'C:\Program Files (x86)\Inno Setup 6\Languages\ChineseSimplified.isl'
+          if (-not (Test-Path $language)) {
+            Invoke-WebRequest `
+              -Uri 'https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Unofficial/ChineseSimplified.isl' `
+              -OutFile $language
+          }
           $template = Get-Content windows/packaging/exe/inno_setup.iss -Raw
           $template = $template.Replace('{{APP_VERSION}}', '${{ steps.version.outputs.value }}')
           $template | Set-Content build/windows/setup.iss -Encoding UTF8
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /Q build/windows/setup.iss
+      - name: Sign Windows installer
+        if: env.HAS_WINDOWS_SIGNING == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $certificate = Join-Path $env:RUNNER_TEMP 'clashwave-signing.pfx'
+          $signtool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' `
+            -Filter signtool.exe -Recurse -File |
+            Where-Object FullName -Match '\\x64\\signtool\.exe$' |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+          $installer = Get-ChildItem dist -Filter '*-setup.exe' | Select-Object -First 1
+          & $signtool.FullName sign /fd SHA256 /td SHA256 `
+            /tr 'http://timestamp.digicert.com' /f $certificate `
+            /p $env:WINDOWS_CERTIFICATE_PASSWORD $installer.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:

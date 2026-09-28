@@ -55,6 +55,14 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 
+# Small native SCM wrapper. The Flutter GUI remains a standard user process;
+# only this service and its Mihomo child run as LocalSystem.
+add_executable(clashwave_service "service/clashwave_service.cpp")
+target_compile_features(clashwave_service PRIVATE cxx_std_17)
+target_compile_options(clashwave_service PRIVATE /W4 /WX /EHsc)
+target_compile_definitions(clashwave_service PRIVATE UNICODE _UNICODE NOMINMAX)
+target_link_libraries(clashwave_service PRIVATE advapi32)
+
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
 include(flutter/generated_plugins.cmake)
@@ -75,6 +83,8 @@ set(INSTALL_BUNDLE_DATA_DIR "${CMAKE_INSTALL_PREFIX}/data")
 set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}")
 
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
+  COMPONENT Runtime)
+install(TARGETS clashwave_service RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
 
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"

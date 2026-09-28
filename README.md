@@ -19,7 +19,7 @@
 - Android 系统 VPN、快捷设置磁贴、Always-on VPN、网络切换恢复和前台服务通知
 - 支持 `clash://install-config` 深链导入
 - 支持 `https://clashwave.wenyun.qzz.io` Android App Links
-- 桌面端系统代理、状态托盘，以及普通权限 GUI 与按需提权的 Mihomo 内核进程
+- 桌面端系统代理、状态托盘，以及普通权限 GUI 与 Windows SCM/macOS LaunchDaemon 特权内核服务
 
 ## 技术栈
 
@@ -35,9 +35,13 @@
 
 Android 端通过 `VpnService` 获取系统 VPN 授权，将 TUN 文件描述符交给 Mihomo 处理；
 应用界面通过 Mihomo 提供的 Clash-compatible REST API 管理配置、代理、连接和日志。
-桌面端默认以普通权限启动 Mihomo；首次开启 TUN 时才请求系统管理员授权，并将内核切换到
-由 GUI 生命周期监督的提权进程，界面本身始终保持普通权限。GUI 与内核继续通过仅监听本机的
-REST/WebSocket 控制端通信。
+桌面端默认以普通权限启动 Mihomo；首次开启 TUN 或在设置中安装内核服务时才请求系统管理员
+授权。Windows 使用 `ClashWaveCore` SCM 服务，macOS 使用
+`io.qzz.wenyun.clashwave-core` LaunchDaemon，界面本身始终保持普通权限。GUI 与内核通过只监听
+`127.0.0.1` 的 REST/WebSocket 控制端通信，端口和 256-bit 随机令牌持久化在用户应用数据目录，
+REST 使用 Bearer 鉴权，WebSocket 使用 token 鉴权。设置页可显式安装或卸载服务。
+为避免高权限服务引用可被普通用户替换的二进制，Windows 必须先用安装包装入 `Program Files`，
+macOS 必须先把 `ClashWave.app` 移入 `/Applications`，便携目录中不会允许注册系统服务。
 
 ## 平台状态
 
@@ -66,9 +70,9 @@ GeoIP（MMDB / DAT）和 GeoSite 数据随应用打包，首次启动会先释�
 | 平台 | 状态 | 说明 |
 | --- | --- | --- |
 | Android | 主要支持 | 已集成 Mihomo、VpnService、TUN 与 App Links |
-| Windows | 支持 | 系统代理、状态托盘、按需提权内核与安装包 |
+| Windows | 支持 | 系统代理、状态托盘、SCM 特权内核服务与安装包 |
 | Linux | 支持 | 系统代理、pkexec 按需提权与 AppImage 配置 |
-| macOS | 支持 | 系统代理、管理员按需提权与 DMG 配置 |
+| macOS | 支持 | 系统代理、LaunchDaemon 特权内核服务与 DMG 配置 |
 | iOS | 实验性 | 工程配置已迁移，发布前仍需在真实设备验证 |
 
 ## 开发环境
@@ -136,10 +140,13 @@ Base64，不要把任何密码或密钥文件提交到仓库：
 | `ANDROID_KEYSTORE_PASSWORD` | keystore 密码 |
 | `ANDROID_KEY_PASSWORD` | key 密码 |
 | `ANDROID_KEY_ALIAS` | key alias |
+| `WINDOWS_CERTIFICATE_BASE64` | Windows Authenticode PFX 的 Base64（GitHub） |
+| `WINDOWS_CERTIFICATE_PASSWORD` | PFX 密码（GitHub） |
 
 GitHub 的 tag 流水线在缺少签名变量时会直接失败；普通分支仍可生成未签名的检查构建。
-GitCode 的发布流水线只生成已签名 AAB。两个流水线都会固定 Flutter、校验 Mihomo 下载文件的
-SHA-256，并在打包前运行静态分析和测试。
+Windows 流水线会分别签名 GUI、SCM 服务包装器和最终安装包。GitCode 的发布流水线只生成
+已签名 AAB。两个流水线都会固定 Flutter、校验 Mihomo 下载文件的 SHA-256，并在打包前运行
+静态分析和测试。
 
 完整的签名、VPN/前台服务申报、Data safety 和上线检查参见
 [Google Play 发布清单](docs/google-play-release.md)。

@@ -8,6 +8,9 @@ class Constants {
   /// rust 控制服务地址
   static late final String rustAddr;
 
+  /// Mihomo 本机控制接口的 Bearer token。
+  static String controllerSecret = '';
+
   /// 配置目录
   static late final Directory homeDir;
 

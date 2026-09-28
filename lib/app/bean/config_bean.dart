@@ -52,6 +52,7 @@ class Config {
   }) async {
     final yaml = _loadYaml();
     yaml.update(["external-controller"], Constants.rustAddr);
+    yaml.update(["secret"], Constants.controllerSecret);
     final root = yaml.parseAt([]).value;
     final port = root is Map ? root['mixed-port'] : null;
     if (port is! int || port < 1 || port > 65535) {
@@ -73,6 +74,7 @@ class Config {
     final yaml = YamlEditor(source);
     yaml.update(['mixed-port'], mixedPort);
     yaml.update(['external-controller'], Constants.rustAddr);
+    yaml.update(['secret'], Constants.controllerSecret);
     yaml.update(['geox-url'], geoxUrls);
     return yaml.toString();
   }
@@ -86,6 +88,9 @@ class Config {
   static Future<void> _saveYaml(YamlEditor yaml) async {
     final file = await File(_path).create(recursive: true);
     await file.writeAsString('${yaml.toString()}\n');
+    if (Platform.isMacOS || Platform.isLinux) {
+      await Process.run('chmod', ['600', file.path]);
+    }
   }
 
   Config copyWith({

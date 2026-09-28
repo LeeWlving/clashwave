@@ -56,9 +56,24 @@ class CoreControl {
 
   static bool get isPrivilegedDesktopCore => _desktopPrivileged;
 
-  /// Restarts the desktop core in a small elevated, GUI-lifetime-scoped
-  /// supervisor. The Flutter process remains unprivileged and continues to
-  /// communicate with Mihomo through its loopback REST/WebSocket controller.
+  static bool get supportsDesktopService =>
+      Platform.isWindows || Platform.isMacOS;
+
+  static Future<bool> isDesktopServiceInstalled() async {
+    if (Platform.isWindows) {
+      final helper = _windowsServiceExecutable();
+      if (!helper.existsSync()) return false;
+      final result = await Process.run(helper.path, ['--is-installed']);
+      return result.exitCode == 0;
+    }
+    if (Platform.isMacOS) {
+      return File(_macLaunchDaemonPath).existsSync();
+    }
+    return false;
+  }
+
+  /// Moves Windows/macOS to an OS-managed service. Linux retains the scoped
+  /// pkexec supervisor until a native service implementation is added.
   static Future<bool> ensurePrivilegedDesktopCore() async {
     if (!Constants.isDesktop || _desktopPrivileged) return false;
     final home = _desktopHomeDir;
@@ -66,6 +81,11 @@ class CoreControl {
     final executable = _desktopExecutable();
     if (!executable.existsSync()) {
       throw StateError('Mihomo core not found: ${executable.path}');
+    }
+
+    if (supportsDesktopService) {
+      await installDesktopService();
+      return true;
     }
 
     await _stopDirectCore();
@@ -80,6 +100,72 @@ class CoreControl {
       _desktopPrivileged = false;
       await _startDesktopCore();
       rethrow;
+    }
+  }
+
+  /// Installs and starts an OS-managed privileged core. Installation is the
+  /// only operation that triggers a UAC/macOS administrator prompt.
+  static Future<void> installDesktopService() async {
+    if (!supportsDesktopService) {
+      throw UnsupportedError('当前平台不支持持久化内核服务');
+    }
+    final home = _desktopHomeDir;
+    if (home == null) throw StateError('Mihomo home directory is not ready');
+    final core = _desktopExecutable();
+    if (!core.existsSync()) {
+      throw StateError('Mihomo core not found: ${core.path}');
+    }
+    final config = File(path.join(home.path, 'config.yaml'));
+    if (!config.existsSync()) throw StateError('Mihomo config is not ready');
+    _validateProtectedInstallation(core);
+
+    await _stopDirectCore();
+    try {
+      if (Platform.isWindows) {
+        final helper = _windowsServiceExecutable();
+        if (!helper.existsSync()) {
+          throw StateError('Windows service helper not found: ${helper.path}');
+        }
+        final exitCode = await _runWindowsElevated(helper, [
+          '--install',
+          core.path,
+          home.path,
+          config.path,
+        ]);
+        if (exitCode != 0) {
+          throw StateError('Windows 内核服务安装失败（代码 $exitCode）');
+        }
+      } else {
+        await _installMacLaunchDaemon(core, home, config);
+      }
+      if (!await _waitForController()) {
+        throw StateError('特权内核服务未能连接到本机控制端口');
+      }
+      _desktopPrivileged = true;
+    } catch (_) {
+      _desktopPrivileged = false;
+      await _startDesktopCore();
+      rethrow;
+    }
+  }
+
+  static Future<void> uninstallDesktopService() async {
+    if (!supportsDesktopService) return;
+    if (Platform.isWindows) {
+      final helper = _windowsServiceExecutable();
+      if (helper.existsSync()) {
+        final exitCode = await _runWindowsElevated(helper, ['--uninstall']);
+        if (exitCode != 0) {
+          throw StateError('Windows 内核服务卸载失败（代码 $exitCode）');
+        }
+      }
+    } else {
+      await _uninstallMacLaunchDaemon();
+    }
+    _desktopPrivileged = false;
+    await _startDesktopCore();
+    if (!await _waitForController()) {
+      throw StateError('普通权限 Mihomo 内核重新启动失败');
     }
   }
 
@@ -129,6 +215,20 @@ class CoreControl {
     final home = _desktopHomeDir;
     if (home == null) return false;
 
+    if (supportsDesktopService && await isDesktopServiceInstalled()) {
+      if (Platform.isWindows && !await _controllerReachable()) {
+        final helper = _windowsServiceExecutable();
+        final result = await Process.run(helper.path, ['--start']);
+        if (result.exitCode != 0) {
+          throw StateError('Windows 内核服务启动失败（代码 ${result.exitCode}）');
+        }
+      }
+      if (!await _waitForController()) {
+        throw StateError('已安装的内核服务没有响应，请重新安装服务');
+      }
+      _desktopPrivileged = true;
+      return true;
+    }
     if (_desktopPrivileged && await _controllerReachable()) return true;
     final executable = _desktopExecutable();
     if (!executable.existsSync()) {
@@ -165,9 +265,8 @@ class CoreControl {
 
   static Future<void> shutdown() async {
     if (_desktopPrivileged) {
-      // The elevated supervisor watches this GUI process and terminates Mihomo
-      // immediately after the GUI exits. A standard user process intentionally
-      // does not receive a handle capable of killing an elevated process.
+      // An installed service intentionally survives GUI shutdown. Linux's
+      // supervisor observes the GUI process and cleans up its Mihomo child.
       return;
     }
     await _stopDirectCore();
@@ -178,6 +277,35 @@ class CoreControl {
     return File(
       path.join(File(Platform.resolvedExecutable).parent.path, executableName),
     );
+  }
+
+  static File _windowsServiceExecutable() => File(
+    path.join(
+      File(Platform.resolvedExecutable).parent.path,
+      'clashwave_service.exe',
+    ),
+  );
+
+  static void _validateProtectedInstallation(File core) {
+    final appDirectory = core.parent.absolute.path;
+    if (Platform.isWindows) {
+      final roots = [
+        Platform.environment['ProgramFiles'],
+        Platform.environment['ProgramFiles(x86)'],
+      ].whereType<String>().map((value) => path.normalize(value).toLowerCase());
+      final normalized = path.normalize(appDirectory).toLowerCase();
+      if (!roots.any(
+        (root) => normalized == root || path.isWithin(root, normalized),
+      )) {
+        throw StateError('为避免提权风险，请先用安装包装到 Program Files，再安装内核服务');
+      }
+      return;
+    }
+    if (Platform.isMacOS &&
+        appDirectory != '/Applications' &&
+        !path.isWithin('/Applications', appDirectory)) {
+      throw StateError('为避免提权风险，请先将 ClashWave.app 移入 /Applications');
+    }
   }
 
   static Future<void> _stopDirectCore() async {
@@ -197,38 +325,6 @@ class CoreControl {
   ) async {
     final config = path.join(home.path, 'config.yaml');
     final guiPid = pid;
-    if (Platform.isWindows) {
-      String quote(String value) => value.replaceAll("'", "''");
-      final inner =
-          '''
-\$core = Start-Process -FilePath '${quote(executable.path)}' -ArgumentList @('-d','${quote(home.path)}','-f','${quote(config)}') -WindowStyle Hidden -PassThru
-try {
-  while (Get-Process -Id $guiPid -ErrorAction SilentlyContinue) { Start-Sleep -Seconds 2 }
-} finally {
-  Stop-Process -Id \$core.Id -Force -ErrorAction SilentlyContinue
-}
-''';
-      final utf16le = <int>[
-        for (final unit in inner.codeUnits) ...[unit & 0xff, unit >> 8],
-      ];
-      final encoded = base64.encode(utf16le);
-      final outer =
-          "\$ErrorActionPreference='Stop'; "
-          "Start-Process -FilePath 'powershell.exe' -Verb RunAs "
-          "-WindowStyle Hidden -ArgumentList @('-NoProfile','-NonInteractive',"
-          "'-EncodedCommand','$encoded')";
-      final result = await Process.run('powershell.exe', [
-        '-NoProfile',
-        '-NonInteractive',
-        '-Command',
-        outer,
-      ]);
-      if (result.exitCode != 0) {
-        throw StateError('Windows 提权被取消或启动失败');
-      }
-      return;
-    }
-
     final script =
         '${_shellQuote(executable.path)} -d ${_shellQuote(home.path)} '
         '-f ${_shellQuote(config)} >/dev/null 2>&1 & core=\$!; '
@@ -259,6 +355,94 @@ try {
   static String _shellQuote(String value) =>
       "'${value.replaceAll("'", "'\\''")}'";
 
+  static const _macLaunchDaemonLabel = 'io.qzz.wenyun.clashwave-core';
+  static const _macLaunchDaemonPath =
+      '/Library/LaunchDaemons/$_macLaunchDaemonLabel.plist';
+
+  static Future<int> _runWindowsElevated(
+    File executable,
+    List<String> arguments,
+  ) async {
+    String quote(String value) => value.replaceAll("'", "''");
+    final argumentList = arguments
+        .map((value) => "'${quote(value)}'")
+        .join(',');
+    final command =
+        "\$process = Start-Process -FilePath '${quote(executable.path)}' "
+        "-Verb RunAs -WindowStyle Hidden -ArgumentList @($argumentList) "
+        "-Wait -PassThru; exit \$process.ExitCode";
+    final utf16le = <int>[
+      for (final unit in command.codeUnits) ...[unit & 0xff, unit >> 8],
+    ];
+    final result = await Process.run('powershell.exe', [
+      '-NoProfile',
+      '-NonInteractive',
+      '-EncodedCommand',
+      base64.encode(utf16le),
+    ]);
+    return result.exitCode;
+  }
+
+  static Future<void> _installMacLaunchDaemon(
+    File core,
+    Directory home,
+    File config,
+  ) async {
+    String xml(String value) => value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;');
+    final source = File(path.join(home.path, '.clashwave-core.plist'));
+    await source.writeAsString('''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>Label</key><string>$_macLaunchDaemonLabel</string>
+<key>ProgramArguments</key><array>
+<string>${xml(core.path)}</string><string>-d</string><string>${xml(home.path)}</string>
+<string>-f</string><string>${xml(config.path)}</string>
+</array>
+<key>WorkingDirectory</key><string>${xml(home.path)}</string>
+<key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
+<key>ProcessType</key><string>Interactive</string>
+</dict></plist>
+''', flush: true);
+    final command =
+        '/bin/launchctl bootout system/$_macLaunchDaemonLabel >/dev/null 2>&1 || true; '
+        '/bin/cp ${_shellQuote(source.path)} ${_shellQuote(_macLaunchDaemonPath)}; '
+        '/usr/sbin/chown root:wheel ${_shellQuote(_macLaunchDaemonPath)}; '
+        '/bin/chmod 644 ${_shellQuote(_macLaunchDaemonPath)}; '
+        '/bin/launchctl bootstrap system ${_shellQuote(_macLaunchDaemonPath)}; '
+        '/bin/launchctl enable system/$_macLaunchDaemonLabel; '
+        '/bin/launchctl kickstart -k system/$_macLaunchDaemonLabel';
+    await _runMacElevated(command, 'macOS 内核服务安装失败');
+  }
+
+  static Future<void> _uninstallMacLaunchDaemon() async {
+    final home = _desktopHomeDir;
+    final uid = (await Process.run('/usr/bin/id', [
+      '-u',
+    ])).stdout.toString().trim();
+    final gid = (await Process.run('/usr/bin/id', [
+      '-g',
+    ])).stdout.toString().trim();
+    final command =
+        '/bin/launchctl bootout system/$_macLaunchDaemonLabel >/dev/null 2>&1 || true; '
+        '/bin/rm -f ${_shellQuote(_macLaunchDaemonPath)}'
+        '${home != null && int.tryParse(uid) != null && int.tryParse(gid) != null ? '; /usr/sbin/chown -R $uid:$gid ${_shellQuote(home.path)}' : ''}';
+    await _runMacElevated(command, 'macOS 内核服务卸载失败');
+  }
+
+  static Future<void> _runMacElevated(String command, String error) async {
+    final appleScript = command.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+    final result = await Process.run('osascript', [
+      '-e',
+      'do shell script "$appleScript" with administrator privileges',
+    ]);
+    if (result.exitCode != 0) throw StateError(error);
+  }
+
   static Future<bool> _waitForController() async {
     for (var attempt = 0; attempt < 40; attempt++) {
       if (await _controllerReachable()) return true;
@@ -271,16 +455,24 @@ try {
     final parts = Constants.rustAddr.split(':');
     final port = parts.length == 2 ? int.tryParse(parts.last) : null;
     if (port == null) return false;
+    final client = HttpClient()..findProxy = (_) => 'DIRECT';
     try {
-      final socket = await Socket.connect(
-        Constants.localhost,
-        port,
-        timeout: const Duration(milliseconds: 300),
+      final request = await client
+          .getUrl(Uri.parse('http://${Constants.rustAddr}/version'))
+          .timeout(const Duration(milliseconds: 500));
+      request.headers.set(
+        HttpHeaders.authorizationHeader,
+        'Bearer ${Constants.controllerSecret}',
       );
-      socket.destroy();
-      return true;
+      final response = await request.close().timeout(
+        const Duration(milliseconds: 500),
+      );
+      await response.drain<void>();
+      return response.statusCode == HttpStatus.ok;
     } catch (_) {
       return false;
+    } finally {
+      client.close(force: true);
     }
   }
 }

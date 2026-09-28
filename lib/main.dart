@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:clash_for_flutter/app/app_module.dart';
 import 'package:clash_for_flutter/app/app_widget.dart';
 import 'package:clash_for_flutter/app/startup_app.dart';
@@ -13,6 +11,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:clash_for_flutter/app/bean/config_bean.dart';
 import 'package:clash_for_flutter/app/bean/clash_for_me_config_bean.dart';
 import 'package:clash_for_flutter/app/utils/bundled_geodata.dart';
+import 'package:clash_for_flutter/app/utils/controller_auth.dart';
 
 import 'app/utils/constants.dart';
 
@@ -50,11 +49,13 @@ Future<void> initializeCore() async {
   // 初始化 Clash
   CoreControl.init();
   await getApplicationSupportDirectory().then((dir) => Constants.homeDir = dir);
+  final controller = await ControllerAuth.loadOrCreate(Constants.homeDir);
+  Constants.controllerSecret = controller.secret;
   // 设置主目录
   await CoreControl.setHomeDir(Constants.homeDir);
   // Mihomo 直接提供 Clash REST API；每次启动只监听随机本地端口。
   await CoreControl.startRust(
-    "${Constants.localhost}:${Random().nextInt(9999) + 10000}",
+    controller.address,
   ).then((addr) => Constants.rustAddr = addr ?? "");
   // 创建默认配置文件
   if (!(Config.fileExist() ?? false)) {
