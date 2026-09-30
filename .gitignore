@@ -56,3 +56,4 @@ libclash.*
 # Local migration/build references
 /.gradle-dist/
 /.tmp-*/
+/output/

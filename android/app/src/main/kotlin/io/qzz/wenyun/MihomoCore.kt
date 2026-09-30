@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import io.github.oviron.libmihomo.Clash
 import java.io.File
+import java.util.UUID
 import org.json.JSONObject
 
 object MihomoCore {
@@ -48,6 +49,15 @@ object MihomoCore {
         if (running && !controllerAddress.isNullOrBlank()) return controllerAddress!!
         controllerAddress = requested
         return requested
+    }
+
+    fun invokeAction(method: String, data: Any?, callback: (String) -> Unit) {
+        val action =
+            JSONObject()
+                .put("id", UUID.randomUUID().toString())
+                .put("method", method)
+                .put("data", data ?: JSONObject.NULL)
+        Clash.invokeAction(action.toString()) { callback(it.orEmpty()) }
     }
 
     private fun readControllerAddress(directory: String): String? {

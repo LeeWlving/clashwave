@@ -27,7 +27,7 @@ abstract class CoreConfigBase with Store {
   int get mixedPort => clash.mixedPort ?? 0;
 
   @action
-  setState({
+  Future<void> setState({
     int? redirPort,
     int? tproxyPort,
     int? mixedPort,
@@ -73,6 +73,12 @@ abstract class CoreConfigBase with Store {
       await _request.patchConfigs(Config(tun: Tun(enable: true)));
     } else if (Platform.isAndroid) {
       await CoreControl.startVpn();
+      // The foreground service starts Mihomo and establishes TUN asynchronously. Wait briefly
+      // so the dashboard reflects the real service state instead of flashing back to "off".
+      for (var attempt = 0; attempt < 50; attempt++) {
+        if (await CoreControl.isVpnRunning()) break;
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
     }
     await asyncConfig();
   }

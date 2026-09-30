@@ -1,7 +1,10 @@
 package io.qzz.wenyun
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.VpnService
+import android.os.Build
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -11,6 +14,7 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val CHANNEL = "io.qzz.wenyun/mihomo"
         private const val VPN_REQUEST_CODE = 1001
+        private const val NOTIFICATION_REQUEST_CODE = 1002
     }
 
     private var pendingVpnResult: MethodChannel.Result? = null
@@ -58,6 +62,16 @@ class MainActivity : FlutterActivity() {
                             MihomoCore.resolveController(call.argument<String>("addr").orEmpty()),
                         )
                     }
+                    "invokeAction" -> {
+                        val method = call.argument<String>("method").orEmpty()
+                        if (method.isBlank()) {
+                            result.error("MIHOMO_ACTION_INVALID", "Missing action method", null)
+                        } else {
+                            MihomoCore.invokeAction(method, call.argument<Any?>("data")) { response ->
+                                runOnUiThread { result.success(response) }
+                            }
+                        }
+                    }
                     "verifyMMDB" -> {
                         val file = File(call.argument<String>("path").orEmpty())
                         result.success(file.isFile && file.length() > 0)
@@ -82,15 +96,36 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun requestVpn(result: MethodChannel.Result) {
-        val permissionIntent = VpnService.prepare(this)
-        if (permissionIntent == null) {
-            startVpn()
-            result.success(true)
+        if (pendingVpnResult != null) {
+            result.error("VPN_BUSY", "A VPN request is already in progress", null)
+            return
+        }
+        pendingVpnResult = result
+
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                    PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                NOTIFICATION_REQUEST_CODE,
+            )
             return
         }
 
-        pendingVpnResult?.error("VPN_BUSY", "Superseded by a newer VPN request", null)
-        pendingVpnResult = result
+        requestSystemVpnPermission()
+    }
+
+    private fun requestSystemVpnPermission() {
+        val permissionIntent = VpnService.prepare(this)
+        if (permissionIntent == null) {
+            startVpn()
+            pendingVpnResult?.success(true)
+            pendingVpnResult = null
+            return
+        }
+
         @Suppress("DEPRECATION")
         startActivityForResult(permissionIntent, VPN_REQUEST_CODE)
     }
@@ -115,6 +150,20 @@ class MainActivity : FlutterActivity() {
             result?.success(true)
         } else {
             result?.error("VPN_DENIED", "VPN permission denied", null)
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == NOTIFICATION_REQUEST_CODE) {
+            // A denied notification permission must not make the VPN unusable. Android still
+            // exposes a running foreground service in Task Manager; the user can enable normal
+            // notifications later from system settings.
+            requestSystemVpnPermission()
         }
     }
 

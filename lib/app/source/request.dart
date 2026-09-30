@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:clash_for_flutter/app/bean/config_bean.dart';
@@ -19,6 +20,7 @@ import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:clash_for_flutter/app/utils/proxy_port.dart';
 import 'package:clash_for_flutter/app/utils/subscription_validation.dart';
+import 'package:clash_for_flutter/core_control.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class Request {
@@ -174,11 +176,27 @@ class Request {
   }
 
   Future<Response> hello() async {
-    return _clashDio.get("/");
+    if (Platform.isAndroid) {
+      final initialized = await CoreControl.invokeAction('getIsInit');
+      if (initialized != true) {
+        throw StateError('Mihomo is not initialized');
+      }
+      return Response(
+        requestOptions: RequestOptions(path: '/version'),
+        statusCode: HttpStatus.ok,
+      );
+    }
+    // `/version` is part of Mihomo's stable controller API. The root path is
+    // not a portable health check and newer cores may reject it with HTTP 400.
+    return _clashDio.get("/version");
   }
 
   /// 获取所有代理
   Future<Proxies?> getProxies() async {
+    if (Platform.isAndroid) {
+      final data = await CoreControl.invokeAction('getProxies');
+      return data is String ? AppJson.fromJson<Proxies>(data) : null;
+    }
     var res = await _clashDio.get<Map<String, dynamic>>("/proxies");
     return AppJson.fromMap<Proxies>(res.data);
   }
@@ -196,6 +214,12 @@ class Request {
 
   /// 获取单个代理的延迟
   Future<int?> getProxyDelay(String name, String url) {
+    if (Platform.isAndroid) {
+      return CoreControl.invokeAction(
+        'testDelay',
+        jsonEncode({'proxy-name': name, 'test-url': url, 'timeout': 2900}),
+      ).then((value) => value is int && value >= 0 ? value : null);
+    }
     return _clashDio
         .get<Map>(
           "/proxies/${_pathSegment(name)}/delay",
@@ -209,6 +233,13 @@ class Request {
     required String name,
     required String select,
   }) async {
+    if (Platform.isAndroid) {
+      await CoreControl.invokeAction(
+        'changeProxy',
+        jsonEncode({'group-name': name, 'proxy-name': select}),
+      );
+      return true;
+    }
     var resp = await _clashDio.put<void>(
       "/proxies/${_pathSegment(name)}",
       data: {"name": select},
@@ -218,6 +249,15 @@ class Request {
 
   /// 获得当前的基础设置
   Future<Config?> getConfigs() async {
+    if (Platform.isAndroid) {
+      final data = await CoreControl.invokeAction(
+        'getConfig',
+        '${Constants.homeDir.path}${Constants.clashConfig}',
+      );
+      return data is Map
+          ? AppJson.fromMap<Config>(Map<String, dynamic>.from(data))
+          : null;
+    }
     var res = await _clashDio.get<Map<String, dynamic>>("/configs");
     return AppJson.fromMap<Config>(res.data);
   }
@@ -272,6 +312,13 @@ class Request {
 
   /// 增量修改配置
   Future<bool> patchConfigs(Config config) async {
+    if (Platform.isAndroid) {
+      await CoreControl.invokeAction(
+        'updateConfig',
+        jsonEncode(AppJson.toMap(config)),
+      );
+      return true;
+    }
     var resp = await _clashDio.patch<void>(
       "/configs",
       data: AppJson.toMap(config),
@@ -286,16 +333,28 @@ class Request {
 
   /// 获取内核版本
   Future<String?> getClashVersion() async {
+    if (Platform.isAndroid) return 'Mihomo 1.19.31';
     var res = await _clashDio.get<Map<String, dynamic>>("/version");
     return res.data?["version"];
   }
 
   Stream<NetSpeed?> traffic() {
+    if (Platform.isAndroid) {
+      return Stream.periodic(const Duration(seconds: 1)).asyncMap((_) async {
+        final data = await CoreControl.invokeAction('getTraffic');
+        return data is String ? AppJson.fromJson<NetSpeed>(data) : null;
+      });
+    }
     var channel = WebSocketChannel.connect(_authenticatedWebSocket('/traffic'));
     return channel.stream.map((event) => AppJson.fromJson<NetSpeed>(event));
   }
 
   Stream<LogData?> logs(LogLevel? level) {
+    if (Platform.isAndroid) {
+      // Android log events come from libmihomo's native event sink. Until a
+      // listener is attached, keep startup independent from the REST socket.
+      return const Stream<LogData?>.empty();
+    }
     var uri = _authenticatedWebSocket('/logs', {'level': level?.value ?? ''});
     var channel = WebSocketChannel.connect(uri);
     return channel.stream.map(
@@ -304,6 +363,12 @@ class Request {
   }
 
   Stream<Snapshot?> connections() {
+    if (Platform.isAndroid) {
+      return Stream.periodic(const Duration(seconds: 1)).asyncMap((_) async {
+        final data = await CoreControl.invokeAction('getConnections');
+        return data is String ? AppJson.fromJson<Snapshot>(data) : null;
+      });
+    }
     var channel = WebSocketChannel.connect(
       _authenticatedWebSocket('/connections'),
     );
@@ -322,11 +387,17 @@ class Request {
   );
 
   Future<bool> closeAllConnections() async {
+    if (Platform.isAndroid) {
+      return await CoreControl.invokeAction('closeAllConnections') == true;
+    }
     var resp = await _clashDio.delete<ResponseBody>("/connections");
     return resp.statusCode == HttpStatus.noContent;
   }
 
   Future<bool> closeConnections(String id) async {
+    if (Platform.isAndroid) {
+      return await CoreControl.invokeAction('closeConnection', id) == true;
+    }
     var resp = await _clashDio.delete<ResponseBody>(
       "/connections/${_pathSegment(id)}",
     );

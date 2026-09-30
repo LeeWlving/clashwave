@@ -210,6 +210,31 @@ class CoreControl {
     return _channel.invokeMethod<String>('getInitialUrl');
   }
 
+  /// Calls libmihomo's native action API on Android.
+  ///
+  /// The embedded Android library intentionally does not expose the Clash
+  /// REST controller. Desktop builds continue to use that controller.
+  static Future<dynamic> invokeAction(String method, [dynamic data]) async {
+    if (!Platform.isAndroid) {
+      throw UnsupportedError('Mihomo actions are only available on Android');
+    }
+    final raw = await _channel.invokeMethod<String>('invokeAction', {
+      'method': method,
+      'data': data,
+    });
+    if (raw == null || raw.isEmpty) {
+      throw StateError('Mihomo action $method returned no response');
+    }
+    final response = jsonDecode(raw);
+    if (response is! Map) {
+      throw StateError('Invalid Mihomo action response for $method');
+    }
+    if (response['code'] != 0) {
+      throw StateError('${response['data'] ?? 'Mihomo action $method failed'}');
+    }
+    return response['data'];
+  }
+
   static Future<bool> _startDesktopCore() async {
     if (_desktopCore != null) return true;
     final home = _desktopHomeDir;

@@ -30,6 +30,14 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "29.0.14033849"
 
+    packaging {
+        jniLibs {
+            // libmihomo resolves libclash.so from applicationInfo.nativeLibraryDir,
+            // so the package manager must extract native libraries at install time.
+            useLegacyPackaging = true
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
