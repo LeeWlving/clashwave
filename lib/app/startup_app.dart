@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:clash_for_flutter/app/theme/clashwave_theme.dart';
+import 'package:clash_for_flutter/app/component/macos_window_frame.dart';
 
 /// Renders a window even when native core initialization fails.
 class StartupApp extends StatefulWidget {
@@ -33,6 +34,7 @@ class _StartupAppState extends State<StartupApp> {
           theme: ClashWaveTheme.light,
           darkTheme: ClashWaveTheme.dark,
           themeMode: ThemeMode.system,
+          builder: (context, child) => MacosWindowFrame(child: child!),
           home: Scaffold(
             body: Center(
               child: Padding(

@@ -6,6 +6,15 @@ class AppDelegate: FlutterAppDelegate {
   static var coreLifecycleChannel: FlutterMethodChannel?
   private var waitingForCoreShutdown = false
 
+  override func applicationDidFinishLaunching(_ notification: Notification) {
+    super.applicationDidFinishLaunching(notification)
+    // Read the current bundle rather than a cached icon from an older build.
+    if let path = Bundle.main.path(forResource: "AppIcon", ofType: "icns"),
+       let icon = NSImage(contentsOfFile: path) {
+      NSApp.applicationIconImage = icon
+    }
+  }
+
   override func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
     guard let channel = Self.coreLifecycleChannel else { return .terminateNow }
     if waitingForCoreShutdown { return .terminateLater }

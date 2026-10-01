@@ -24,6 +24,8 @@ class TrayController {
   static const _inactiveIcon = 'assets/icon_inactive.ico';
   static const _activeIconOther = 'assets/logo_64.png';
   static const _inactiveIconOther = 'assets/logo_64_inactive.png';
+  static const _activeIconMacos = 'assets/tray_macos_active.png';
+  static const _inactiveIconMacos = 'assets/tray_macos_inactive.png';
 
   final SystemTray _tray = SystemTray();
   final AppConfig _config = Modular.get<AppConfig>();
@@ -31,6 +33,10 @@ class TrayController {
   final Request _request = Modular.get<Request>();
   final LogsSubscription _logs = Modular.get<LogsSubscription>();
   final List<ReactionDisposer> _reactions = [];
+
+  StreamSubscription? _trafficSubscription;
+  Timer? _trafficRetry;
+  bool _stopping = false;
 
   bool _initialized = false;
   bool _lightMode = false;
@@ -64,16 +70,59 @@ class TrayController {
 
     await _tray.initSystemTray(
       iconPath: _iconPath(enabled: _isEnabled),
+      isTemplate: false,
       toolTip: _toolTip,
     );
     _tray.registerSystemTrayEventHandler((event) {
       if (event == kSystemTrayEventClick) {
-        unawaited(_showPage('/home'));
+        if (Platform.isMacOS) {
+          unawaited(_tray.popUpContextMenu());
+        } else {
+          unawaited(_showPage('/home'));
+        }
       } else if (event == kSystemTrayEventRightClick) {
         unawaited(_tray.popUpContextMenu());
       }
     });
     await _refreshTray(forceIcon: true);
+    if (Platform.isMacOS) _subscribeTraffic();
+  }
+
+  static String formatSpeed(int bytes) {
+    if (bytes < 1024) return '$bytes B/s';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB/s';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB/s';
+  }
+
+  Future<void> _showSpeed(int up, int down) async {
+    if (_stopping) return;
+    await _tray.setSystemTrayInfo(
+      title: '${formatSpeed(up)}\n${formatSpeed(down)}',
+    );
+  }
+
+  void _subscribeTraffic() {
+    if (_stopping) return;
+    unawaited(_showSpeed(0, 0));
+    _trafficSubscription = _request.traffic().listen(
+      (speed) => unawaited(_showSpeed(speed?.up ?? 0, speed?.down ?? 0)),
+      onError: (Object error) => _retryTraffic(),
+      onDone: _retryTraffic,
+      cancelOnError: true,
+    );
+  }
+
+  void _retryTraffic() {
+    if (_stopping) return;
+    unawaited(_showSpeed(0, 0));
+    _trafficRetry?.cancel();
+    _trafficRetry = Timer(const Duration(seconds: 2), _subscribeTraffic);
+  }
+
+  Future<void> _stopTraffic() async {
+    _stopping = true;
+    _trafficRetry?.cancel();
+    await _trafficSubscription?.cancel();
   }
 
   bool get _isEnabled => _config.systemProxy || _core.tunEnable;
@@ -81,6 +130,9 @@ class TrayController {
   String get _toolTip => _isEnabled ? 'ClashWave · 已开启' : 'ClashWave · 未开启';
 
   String _iconPath({required bool enabled}) {
+    if (Platform.isMacOS) {
+      return enabled ? _activeIconMacos : _inactiveIconMacos;
+    }
     if (Platform.isWindows) {
       return enabled ? _activeIcon : _inactiveIcon;
     }
@@ -95,6 +147,7 @@ class TrayController {
     if (forceIcon || enabled != _lastEnabled) {
       await _tray.setSystemTrayInfo(
         iconPath: _iconPath(enabled: enabled),
+        isTemplate: false,
         toolTip: _toolTip,
       );
       _lastEnabled = enabled;
@@ -285,6 +338,7 @@ class TrayController {
           'sleep 0.4; exec ${_shellQuote(executable.path)}',
         ], mode: ProcessStartMode.detached);
       }
+      await _stopTraffic();
       await _tray.destroy();
       await windowManager.setPreventClose(false);
       await windowManager.destroy();
@@ -338,6 +392,7 @@ class TrayController {
     if (_config.systemProxy) await _config.closeProxy();
     if (_core.tunEnable) await _core.closeTun();
     await CoreControl.shutdown();
+    await _stopTraffic();
     await _tray.destroy();
     await windowManager.setPreventClose(false);
     await windowManager.close();

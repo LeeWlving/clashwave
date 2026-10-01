@@ -203,7 +203,7 @@ foreach ($item in $iosSizes.GetEnumerator()) {
 }
 
 foreach ($size in 16, 32, 64, 128, 256, 512, 1024) {
-    Save-Png "macos\Runner\Assets.xcassets\AppIcon.appiconset\app_icon_$size.png" $size $tide $white $false
+    Save-Png "macos\Runner\Assets.xcassets\AppIcon.appiconset\app_icon_$size.png" $size $tide $white $true
 }
 
 Save-Ico 'windows\runner\resources\app_icon.ico' $tide $white

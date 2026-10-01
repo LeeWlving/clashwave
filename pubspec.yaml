@@ -36,7 +36,8 @@ dependencies:
 
   window_manager: ^0.5.2
   launch_at_startup: ^0.5.1
-  system_tray: ^2.0.3
+  system_tray:
+    path: third_party/system_tray
   desktop_lifecycle: ^0.1.1
   proxy_manager: ^0.0.3
   local_notifier: ^0.1.5

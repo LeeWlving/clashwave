@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:clash_for_flutter/app/theme/clashwave_theme.dart';
+import 'package:clash_for_flutter/app/component/macos_window_frame.dart';
 
 class AppWidget extends StatefulWidget {
   const AppWidget({super.key});
@@ -34,7 +35,8 @@ class _AppWidgetState extends State<AppWidget> {
       darkTheme: ClashWaveTheme.dark,
       themeMode: ThemeMode.system,
       routerConfig: Modular.routerConfig,
-      builder: Asuka.builder,
+      builder: (context, child) =>
+          MacosWindowFrame(child: Asuka.builder(context, child)),
       // navigatorObservers: [Asuka.asukaHeroController],
     );
     Modular.setObservers([Asuka.asukaHeroController]);
