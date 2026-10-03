@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="ClashWave cat and wave logo">
+  <rect width="1024" height="1024" rx="256" fill="#176B78"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="66" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M246 553 L287 276 L440 399 Q512 369 584 399 L737 276 L778 553"/>
+    <path d="M184 635 C318 512 399 778 532 635 C655 502 737 737 840 614"/>
+  </g>
+  <g fill="#FFFFFF">
+    <circle cx="410" cy="522" r="28"/>
+    <circle cx="614" cy="522" r="28"/>
+  </g>
+</svg>

@@ -1,103 +1,82 @@
 import { defineConfig } from "vitepress";
 
-// https://vitepress.dev/reference/site-config
+const repository = "https://github.com/LeeWlving/clashwave";
+
 export default defineConfig({
-  title: "Vitepress 模板",
-  description: "一个 VitePress 站点",
-  // base: "/", // always ends with slash
+  base: "/clashwave/",
   cleanUrls: true,
-  head: [
-    ["link", { rel: "icon", href: "https://icons.siiway.org/siiway/icon.svg" }],
-  ],
+  srcExclude: ["README.md"],
   lastUpdated: true,
-  themeConfig: {
-    // https://vitepress.dev/reference/default-theme-config
-    nav: [{ text: "主页", link: "/" }],
-
-    sidebar: {
-      ["/"]: [
-        { text: "回到主页", link: "/" },
-        {
-          text: "示例文档",
-          items: [
-            { text: "Markdown 示例", link: "/markdown-examples" },
-            { text: "API 示例", link: "/api-examples" },
-          ],
-        },
-        { text: "外链示例", link: "https://not-exist.wss.moe/outlink-zh" },
-      ],
-      ["/en_us/"]: [
-        { text: "Back to homepage", link: "/en_us/" },
-        {
-          text: "Example docs",
-          items: [
-            { text: "Markdown Examples", link: "/en_us/markdown-examples" },
-            { text: "API Examples", link: "/en_us/api-examples" },
-          ],
-        },
-        { text: "Outlink Test", link: "https://not-exist.wss.moe/outlink-en" },
-      ],
-    },
-
-    socialLinks: [
-      { icon: "github", link: "https://github.com/vuejs/vitepress" },
-      { icon: "qq", link: "https://not-exist.wss.moe/qq" },
-      { icon: "discord", link: "https://not-exist.wss.moe/discord" },
-    ],
-
-    editLink: {
-      pattern: "https://github.com/wyf9/vitepress-template/edit/main/:path",
-      text: "在 GitHub 上编辑本页",
-    },
-
-    lastUpdated: {
-      text: "最后更新于",
-      formatOptions: {
-        dateStyle: "full",
-        timeStyle: "full",
-      },
-    },
+  title: "ClashWave",
+  description: "A user-controlled, cross-platform Mihomo VPN and proxy client.",
+  head: [
+    ["link", { rel: "icon", href: "/clashwave/logo.svg", type: "image/svg+xml" }],
+    ["meta", { name: "theme-color", content: "#176B78" }],
+    ["meta", { property: "og:site_name", content: "ClashWave" }],
+  ],
+  sitemap: {
+    hostname: "https://leewlving.github.io/clashwave/",
   },
-
   locales: {
     root: {
       label: "简体中文",
-      lang: "zh",
+      lang: "zh-CN",
+      title: "ClashWave",
+      description: "由用户自主配置的跨平台 Mihomo VPN 与代理客户端。",
     },
     en_us: {
       label: "English",
-      lang: "en",
+      lang: "en-US",
       link: "/en_us/",
-
-      title: "Vitepress Template",
-      description: "A VitePress Site",
-
+      title: "ClashWave",
+      description: "A user-controlled, cross-platform Mihomo VPN and proxy client.",
       themeConfig: {
-        nav: [{ text: "Home", link: "/en_us/" }],
-
-        socialLinks: [
-          { icon: "github", link: "https://github.com/vuejs/vitepress" },
-          { icon: "discord", link: "https://not-exist.wss.moe/discord" },
+        nav: [
+          { text: "Home", link: "/en_us/" },
+          { text: "Privacy", link: "/en_us/privacy" },
+          { text: "Support", link: "/en_us/support" },
+          { text: "Source", link: repository },
         ],
-
         editLink: {
-          pattern: "https://github.com/wyf9/vitepress-template/edit/main/:path",
+          pattern: `${repository}/edit/main/:path`,
           text: "Edit this page on GitHub",
         },
-
         lastUpdated: {
-          text: "Last updated at",
-          formatOptions: {
-            dateStyle: "full",
-            timeStyle: "full",
-          },
+          text: "Last updated",
+          formatOptions: { dateStyle: "long", timeStyle: "short" },
+        },
+        footer: {
+          message: "ClashWave does not provide proxy nodes or subscription services.",
+          copyright: "Released under the GPL-3.0 license.",
         },
       },
     },
   },
-  markdown: {
-    image: {
-      lazyLoading: true,
+  themeConfig: {
+    logo: "/logo.svg",
+    siteTitle: "ClashWave",
+    nav: [
+      { text: "首页", link: "/" },
+      { text: "隐私政策", link: "/privacy" },
+      { text: "支持", link: "/support" },
+      { text: "源代码", link: repository },
+    ],
+    socialLinks: [{ icon: "github", link: repository }],
+    search: { provider: "local" },
+    editLink: {
+      pattern: `${repository}/edit/main/:path`,
+      text: "在 GitHub 上编辑此页",
     },
+    lastUpdated: {
+      text: "最后更新",
+      formatOptions: { dateStyle: "long", timeStyle: "short" },
+    },
+    footer: {
+      message: "ClashWave 不提供代理节点或订阅服务。",
+      copyright: "Released under the GPL-3.0 license.",
+    },
+  },
+  markdown: {
+    image: { lazyLoading: true },
   },
 });

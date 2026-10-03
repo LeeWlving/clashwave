@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://leewlving.github.io/clashwave/sitemap.xml
