@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.VpnService
 import android.os.Build
+import android.os.Bundle
+import androidx.core.view.WindowCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -20,6 +22,14 @@ class MainActivity : FlutterActivity() {
     private var pendingVpnResult: MethodChannel.Result? = null
     private var methodChannel: MethodChannel? = null
     private var initialUrlConsumed = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        // Android 15+ enforces edge-to-edge for apps targeting API 35 or newer.
+        // Enable the same behavior on older supported Android versions so the
+        // Flutter layout and its MediaQuery insets behave consistently.
+        WindowCompat.enableEdgeToEdge(window)
+        super.onCreate(savedInstanceState)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

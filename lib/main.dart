@@ -1,9 +1,12 @@
+import 'dart:io';
+
 import 'package:clash_for_flutter/app/app_module.dart';
 import 'package:clash_for_flutter/app/app_widget.dart';
 import 'package:clash_for_flutter/app/startup_app.dart';
 import 'package:clash_for_flutter/app/utils/clash_custom_messages.dart';
 import 'package:clash_for_flutter/core_control.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
@@ -17,6 +20,10 @@ import 'app/utils/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (Platform.isAndroid) {
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
 
   if (Constants.isDesktop) {
     await windowManager.ensureInitialized();

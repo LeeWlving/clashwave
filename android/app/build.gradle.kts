@@ -88,5 +88,6 @@ flutter {
 }
 
 dependencies {
+    implementation("androidx.core:core-ktx:1.18.0")
     implementation(files("libs/libmihomo-android-v0.3.5.aar"))
 }

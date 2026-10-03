@@ -2,10 +2,10 @@ name: Build and release ClashWave
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     tags: ['v*']
   pull_request:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 concurrency:
@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -49,8 +49,8 @@ jobs:
     env:
       HAS_ANDROID_SIGNING: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
@@ -87,14 +87,14 @@ jobs:
       - name: Build AAB
         run: flutter build appbundle --release --no-pub
       - name: Upload AAB artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ClashWave-android-aab
           path: build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
       - name: Publish AAB to GitHub release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: build/app/outputs/bundle/release/app-release.aab
 
@@ -106,7 +106,7 @@ jobs:
     env:
       HAS_WINDOWS_SIGNING: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 != '' && secrets.WINDOWS_CERTIFICATE_PASSWORD != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -211,7 +211,7 @@ jobs:
             /p $env:WINDOWS_CERTIFICATE_PASSWORD $installer.FullName
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ClashWave-windows-x64
           path: |
@@ -220,8 +220,96 @@ jobs:
           if-no-files-found: error
       - name: Publish Windows artifacts to GitHub release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             dist/*.zip
             dist/*.exe
+
+  macos:
+    name: macOS universal
+    needs: quality
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Download and verify universal Mihomo
+        run: sh macos/prepare_core.sh
+      - name: Resolve locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Build macOS release
+        run: flutter build macos --release --no-pub
+      - name: Read app version
+        id: version
+        shell: bash
+        run: |
+          version="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml)"
+          echo "value=${version%%+*}" >> "$GITHUB_OUTPUT"
+      - name: Create application archive
+        run: |
+          mkdir -p dist
+          ditto -c -k --sequesterRsrc --keepParent \
+            build/macos/Build/Products/Release/ClashWave.app \
+            "dist/ClashWave-${{ steps.version.outputs.value }}-macos-universal.zip"
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ClashWave-macos-universal
+          path: dist/*.zip
+          if-no-files-found: error
+      - name: Publish macOS artifact to GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/*.zip
+
+  linux:
+    name: Linux x64
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Download and verify Mihomo
+        run: sh linux/prepare_core.sh
+      - name: Resolve locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Build Linux release
+        run: flutter build linux --release --no-pub
+      - name: Read app version
+        id: version
+        shell: bash
+        run: |
+          version="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml)"
+          echo "value=${version%%+*}" >> "$GITHUB_OUTPUT"
+      - name: Create portable archive
+        run: |
+          mkdir -p dist
+          tar -C build/linux/x64/release/bundle -czf \
+            "dist/ClashWave-${{ steps.version.outputs.value }}-linux-x64.tar.gz" .
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ClashWave-linux-x64
+          path: dist/*.tar.gz
+          if-no-files-found: error
+      - name: Publish Linux artifact to GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/*.tar.gz

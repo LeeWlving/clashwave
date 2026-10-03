@@ -131,8 +131,8 @@ build/app/outputs/bundle/release/app-release.aab
 `android/key.properties`、JKS/keystore、`build/`、`.dart_tool/` 及本地迁移目录均已加入
 `.gitignore`，不得提交到版本库。
 
-GitHub Actions 与 GitCode 流水线使用相同的四个加密变量，密钥内容必须是 JKS 文件的
-Base64，不要把任何密码或密钥文件提交到仓库：
+GitHub Actions 使用以下加密变量。密钥内容必须是 JKS/PFX 文件的 Base64，不要把任何密码
+或密钥文件提交到仓库：
 
 | 变量 | 内容 |
 | --- | --- |
@@ -143,10 +143,11 @@ Base64，不要把任何密码或密钥文件提交到仓库：
 | `WINDOWS_CERTIFICATE_BASE64` | Windows Authenticode PFX 的 Base64（GitHub） |
 | `WINDOWS_CERTIFICATE_PASSWORD` | PFX 密码（GitHub） |
 
-GitHub 的 tag 流水线在缺少签名变量时会直接失败；普通分支仍可生成未签名的检查构建。
-Windows 流水线会分别签名 GUI、SCM 服务包装器和最终安装包。GitCode 的发布流水线只生成
-已签名 AAB。两个流水线都会固定 Flutter、校验 Mihomo 下载文件的 SHA-256，并在打包前运行
-静态分析和测试。
+GitHub 的源码流水线监听 `master`、面向 `master` 的 Pull Request 以及 `v*` tag。普通分支
+构建会运行静态分析和测试，并生成 Android AAB、Windows 安装包/便携包、macOS 通用包和
+Linux x64 便携包。`v*` tag 会把这些产物发布到 GitHub Releases；Android 与 Windows 的
+tag 构建缺少对应签名变量时会直接失败。所有平台均固定 Flutter 版本，Mihomo 下载文件会先
+校验 SHA-256 再参与构建。
 
 完整的签名、VPN/前台服务申报、Data safety 和上线检查参见
 [Google Play 发布清单](docs/google-play-release.md)。
@@ -161,8 +162,7 @@ Android 支持 `clash://install-config` 自定义深链导入。项目型 GitHub
 
 ```text
 android/                 Android VpnService、Mihomo bridge 与构建配置
-.github/workflows/       GitHub 检查、Windows 与 Android AAB 发布
-.gitcode/workflows/      GitCode Android AAB 发布
+.github/workflows/       GitHub 检查及 Android/Windows/macOS/Linux 发布
 lib/app/                 页面、模型、状态与 Clash-compatible API
 lib/app/utils/app_json.dart
                          API 与持久化数据的显式 JSON 编解码
