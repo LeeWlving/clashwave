@@ -19,6 +19,7 @@ env:
   FLUTTER_VERSION: '3.47.5'
   MIHOMO_VERSION: '1.19.31'
   MIHOMO_ANDROID_WRAPPER_VERSION: '0.3.5'
+  ANDROID_NDK_VERSION: '29.0.14033849'
   MIHOMO_WINDOWS_ZIP_SHA256: '38b2420799d9e7cde77ec1a19c7150dd17ca77f7fb82d9f62cb8763a307eee67'
   MIHOMO_ANDROID_AAR_SHA256: '41ddcce67de37f406377798c5adbc7ff925e6cd9cadbef3f187da3a03e564176'
 
@@ -59,6 +60,12 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Install pinned Android NDK
+        shell: bash
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "ndk;${ANDROID_NDK_VERSION}"
       - name: Download and verify Android Mihomo bridge
         shell: bash
         run: |
