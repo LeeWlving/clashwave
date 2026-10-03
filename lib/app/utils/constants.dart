@@ -15,14 +15,14 @@ class Constants {
   static late final Directory homeDir;
 
   /// 开源地址
-  static const sourceUrl = "https://clashwave.wenyun.qzz.io";
+  static const sourceUrl = "https://github.com/LeeWlving/clashwave";
 
   /// 官网
-  static const homeUrl = "https://clashwave.wenyun.qzz.io";
+  static const homeUrl = "https://leewlving.github.io/clashwave/";
 
   /// 检测最新版本
   static const releaseUrl =
-      "https://clashwave.wenyun.qzz.io/api/releases/latest";
+      "https://api.github.com/repos/LeeWlving/clashwave/releases/latest";
 
   /// 下载的配置文件路径
   static const profilesPath = "/profiles";

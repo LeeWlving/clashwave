@@ -2,8 +2,8 @@
 
 ClashWave 是基于 Flutter 与 Mihomo 的多平台代理/VPN 客户端。
 
-- 官网：[clashwave.wenyun.qzz.io](https://clashwave.wenyun.qzz.io)
-- 隐私政策：[clashwave.wenyun.qzz.io/privacy](https://clashwave.wenyun.qzz.io/privacy)
+- 官网：[leewlving.github.io/clashwave](https://leewlving.github.io/clashwave/)
+- 隐私政策：[leewlving.github.io/clashwave/privacy](https://leewlving.github.io/clashwave/privacy)
 - Android application ID：`org.eu.liwenyun`
 
 应用支持订阅 URL、本地配置文件、代理节点切换、连接与日志查看，以及 Android 系统 VPN。

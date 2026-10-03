@@ -2,7 +2,8 @@
 
 基于 Flutter 与 [Mihomo](https://github.com/MetaCubeX/mihomo) 的多平台代理客户端。
 
-- 官网：[clashwave.wenyun.qzz.io](https://clashwave.wenyun.qzz.io)
+- 官网：[leewlving.github.io/clashwave](https://leewlving.github.io/clashwave/)
+- 源码：[github.com/LeeWlving/clashwave](https://github.com/LeeWlving/clashwave)
 - Android application ID：`org.eu.liwenyun`
 - 当前版本：`2.0.0+4`
 - Android 内核：Mihomo `1.19.31`
@@ -18,7 +19,6 @@
 - 持久化应用设置与订阅信息
 - Android 系统 VPN、快捷设置磁贴、Always-on VPN、网络切换恢复和前台服务通知
 - 支持 `clash://install-config` 深链导入
-- 支持 `https://clashwave.wenyun.qzz.io` Android App Links
 - 桌面端系统代理、状态托盘，以及普通权限 GUI 与 Windows SCM/macOS LaunchDaemon 特权内核服务
 
 ## 技术栈
@@ -151,16 +151,11 @@ Windows 流水线会分别签名 GUI、SCM 服务包装器和最终安装包。G
 完整的签名、VPN/前台服务申报、Data safety 和上线检查参见
 [Google Play 发布清单](docs/google-play-release.md)。
 
-## App Links
+## 深链导入
 
-HTTPS App Links 需要在网站部署：
-
-```text
-https://clashwave.wenyun.qzz.io/.well-known/assetlinks.json
-```
-
-其中必须包含正式发布证书的 SHA-256 指纹和 application ID `org.eu.liwenyun`，否则 Android
-无法自动验证该域名。自定义 `clash://` 链接无需网站验证。
+Android 支持 `clash://install-config` 自定义深链导入。项目型 GitHub Pages 无法在
+`leewlving.github.io` 主机根目录部署 Android App Links 所需的 `/.well-known/assetlinks.json`，
+因此当前版本不声明未经验证的 HTTPS App Link。
 
 ## 项目结构
 

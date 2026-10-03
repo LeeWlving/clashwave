@@ -26,4 +26,4 @@ ClashWave 仅在用户明确启用 VPN 后启动前台 VPN 服务。VPN 权限�
 
 卸载应用会删除 Android 为应用保存的本地数据。用户也可以在系统应用设置中
 清除这些数据。如对本政策有疑问，请通过
-[https://clashwave.wenyun.qzz.io](https://clashwave.wenyun.qzz.io) 提供的联系方式联系我们。
+[ClashWave 支持页面](https://leewlving.github.io/clashwave/support)提供的联系方式联系我们。

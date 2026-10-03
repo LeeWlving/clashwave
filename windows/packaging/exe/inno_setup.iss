@@ -1,7 +1,7 @@
 #define MyAppName "ClashWave"
 #define MyAppVersion "{{APP_VERSION}}"
 #define MyAppPublisher "ClashWave"
-#define MyAppURL "https://clashwave.wenyun.qzz.io"
+#define MyAppURL "https://leewlving.github.io/clashwave/"
 #define MyAppExeName "clash_for_flutter.exe"
 
 [Setup]

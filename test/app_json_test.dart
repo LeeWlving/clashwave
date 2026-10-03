@@ -54,13 +54,13 @@ void main() {
       file: 'sample.yaml',
       name: 'Sample',
       time: DateTime.utc(2026, 1, 2),
-      url: 'https://clashwave.wenyun.qzz.io/sample.yaml',
+      url: 'https://leewlving.github.io/clashwave/sample.yaml',
       interval: 24,
     );
     final source = ClashForMeConfig(
       selectedFile: profile.file,
       profiles: [profile],
-      mmdbUrl: 'https://clashwave.wenyun.qzz.io/country.mmdb',
+      mmdbUrl: 'https://leewlving.github.io/clashwave/country.mmdb',
       delayTestUrl: 'https://www.gstatic.com/generate_204',
       subscriptionUserAgent: 'ClashWave/test',
       tunIf: true,
@@ -69,7 +69,10 @@ void main() {
     final decoded = AppJson.fromJson<ClashForMeConfig>(AppJson.encode(source))!;
     final decodedProfile = decoded.profiles.single as ProfileURL;
     expect(decoded.selectedFile, 'sample.yaml');
-    expect(decodedProfile.url, 'https://clashwave.wenyun.qzz.io/sample.yaml');
+    expect(
+      decodedProfile.url,
+      'https://leewlving.github.io/clashwave/sample.yaml',
+    );
     expect(decodedProfile.interval, 24);
     expect(decoded.subscriptionUserAgent, 'ClashWave/test');
     expect(decoded.tunIf, isTrue);
