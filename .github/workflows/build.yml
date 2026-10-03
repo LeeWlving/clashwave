@@ -20,6 +20,7 @@ env:
   MIHOMO_VERSION: '1.19.31'
   MIHOMO_ANDROID_WRAPPER_VERSION: '0.3.5'
   ANDROID_NDK_VERSION: '29.0.14033849'
+  INNO_CHINESE_SHA256: 'bf0751fa176569c6faa2f6e17ed2734617bef325d5cc06eae030fdd0258ee778'
   MIHOMO_WINDOWS_ZIP_SHA256: '38b2420799d9e7cde77ec1a19c7150dd17ca77f7fb82d9f62cb8763a307eee67'
   MIHOMO_ANDROID_AAR_SHA256: '41ddcce67de37f406377798c5adbc7ff925e6cd9cadbef3f187da3a03e564176'
 
@@ -192,8 +193,12 @@ jobs:
           $language = 'C:\Program Files (x86)\Inno Setup 6\Languages\ChineseSimplified.isl'
           if (-not (Test-Path $language)) {
             Invoke-WebRequest `
-              -Uri 'https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Unofficial/ChineseSimplified.isl' `
+              -Uri 'https://raw.githubusercontent.com/kira-96/Inno-Setup-Chinese-Simplified-Translation/1ff90acc4ed4aee82b1cda43253243deee3daed4/ChineseSimplified.isl' `
               -OutFile $language
+            $actual = (Get-FileHash $language -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actual -ne $env:INNO_CHINESE_SHA256) {
+              throw "Inno Setup language checksum mismatch: $actual"
+            }
           }
           $template = Get-Content windows/packaging/exe/inno_setup.iss -Raw
           $template = $template.Replace('{{APP_VERSION}}', '${{ steps.version.outputs.value }}')
