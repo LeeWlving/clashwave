@@ -4,10 +4,12 @@ import 'dart:io';
 
 import 'package:clash_for_flutter/app/bean/clash_for_me_config_bean.dart';
 import 'package:clash_for_flutter/app/bean/profile_base_bean.dart';
+import 'package:clash_for_flutter/app/bean/profile_file_bean.dart';
 import 'package:clash_for_flutter/app/bean/profile_url_bean.dart';
 import 'package:clash_for_flutter/app/exceptions/message_exception.dart';
 import 'package:clash_for_flutter/app/source/core_config.dart';
 import 'package:clash_for_flutter/app/source/request.dart';
+import 'package:clash_for_flutter/app/source/profile_importer.dart';
 import 'package:clash_for_flutter/app/utils/constants.dart';
 import 'package:clash_for_flutter/app/utils/app_json.dart';
 import 'package:flutter_modular/flutter_modular.dart';
@@ -98,6 +100,145 @@ abstract class AppConfigBase with Store {
     }
   }
 
+  Future<void> setTrayPreferences({
+    bool? lightMode,
+    bool? showTraySpeed,
+    bool? sortProxiesByDelay,
+    bool? autoUpdateSubscriptions,
+  }) async {
+    final previous = clashForMe;
+    runInAction(() {
+      clashForMe = clashForMe.copyWith(
+        lightMode: lightMode,
+        showTraySpeed: showTraySpeed,
+        sortProxiesByDelay: sortProxiesByDelay,
+        autoUpdateSubscriptions: autoUpdateSubscriptions,
+      );
+    });
+    try {
+      await clashForMe.saveFile();
+    } catch (_) {
+      runInAction(() => clashForMe = previous);
+      rethrow;
+    }
+  }
+
+  Future<void> importProfile(ProfileBase source) async {
+    if (_switchingProfile) throw MessageException('正在处理配置，请稍后重试');
+    if (source is ProfileURL) {
+      source.url = source.url.trim();
+      final uri = Uri.tryParse(source.url);
+      if (uri == null || !['https', 'http'].contains(uri.scheme) || uri.host.isEmpty) {
+        throw MessageException('请输入有效的 HTTP 或 HTTPS 订阅地址');
+      }
+      if (hasSubscriptionUrl(source.url)) throw MessageException('该订阅地址已经存在');
+    }
+    _switchingProfile = true;
+    ProfileBase? imported;
+    try {
+      if (source is ProfileURL) {
+        imported = await _request.getSubscribe(profile: source, profilesDir: profilesPath);
+      } else if (source is ProfileFile && source.path?.isNotEmpty == true) {
+        imported = await ProfileImporter.fromFile(source.path!, profilesPath);
+        if (source.name.isNotEmpty) imported.name = source.name;
+      } else {
+        throw MessageException('未选择配置文件');
+      }
+      if (profiles.isEmpty &&
+          !await _request.changeConfig('$profilesPath/${imported.file}')) {
+        throw MessageException('Mihomo 拒绝了该配置');
+      }
+      setState(profiles: [...profiles, imported]);
+      await clashForMe.saveFile();
+      await _core.asyncConfig();
+    } catch (_) {
+      if (imported != null && !profiles.any((p) => p.file == imported!.file)) {
+        final failed = File('$profilesPath/${imported.file}');
+        if (await failed.exists()) await failed.delete();
+      }
+      rethrow;
+    } finally {
+      _switchingProfile = false;
+    }
+  }
+
+  Future<void> editProfile(ProfileBase profile) async {
+    if (profile is ProfileURL) {
+      final uri = Uri.tryParse(profile.url.trim());
+      if (uri == null || !['http', 'https'].contains(uri.scheme) || uri.host.isEmpty) {
+        throw MessageException('请输入有效的 HTTP 或 HTTPS 订阅地址');
+      }
+      if (hasSubscriptionUrl(profile.url, exceptFile: profile.file)) {
+        throw MessageException('该订阅地址已经存在');
+      }
+    }
+    final updated = profiles.toList();
+    final index = updated.indexWhere((p) => p.file == profile.file);
+    if (index < 0) throw MessageException('该配置已被移除');
+    updated[index] = profile;
+    setState(profiles: updated);
+    await clashForMe.saveFile();
+  }
+
+  Future<void> replaceFileProfile(ProfileFile old, String path) async {
+    if (_switchingProfile) throw MessageException('正在处理配置，请稍后重试');
+    _switchingProfile = true;
+    ProfileFile? latest;
+    var activated = false;
+    final previous = clashForMe;
+    try {
+      latest = await ProfileImporter.fromFile(path, profilesPath);
+      latest.name = old.name;
+      final updated = profiles.toList();
+      final index = updated.indexWhere((p) => p.file == old.file);
+      if (index < 0) throw MessageException('该配置已被移除');
+      activated = selectedFile == old.file;
+      if (activated && !await _request.changeConfig('$profilesPath/${latest.file}')) {
+        activated = false;
+        throw MessageException('Mihomo 拒绝了该配置，保留原文件');
+      }
+      updated[index] = latest;
+      setState(profiles: updated, selectedFile: activated ? latest.file : selectedFile);
+      await clashForMe.saveFile();
+      await _core.asyncConfig();
+    } catch (_) {
+      runInAction(() => clashForMe = previous);
+      if (activated) {
+        try { await _request.changeConfig('$profilesPath/${old.file}'); } catch (_) {}
+      }
+      if (latest != null) {
+        final failed = File('$profilesPath/${latest.file}');
+        if (await failed.exists()) await failed.delete();
+      }
+      rethrow;
+    } finally {
+      _switchingProfile = false;
+    }
+    final oldFile = File('$profilesPath/${old.file}');
+    if (await oldFile.exists()) await oldFile.delete();
+  }
+
+  Future<void> removeProfile(String file) async {
+    if (_switchingProfile) throw MessageException('正在处理配置，请稍后重试');
+    final remaining = profiles.where((p) => p.file != file).toList();
+    if (remaining.length == profiles.length) return;
+    if (selectedFile == file) {
+      if (remaining.isNotEmpty) {
+        await selectProfile(remaining.first.file);
+      } else {
+        // Removing the last profile must stop using its nodes immediately.
+        if (!await _request.changeConfig('${Constants.homeDir.path}${Constants.clashConfig}')) {
+          throw MessageException('无法卸载当前配置，已保留该订阅');
+        }
+        await _core.asyncConfig();
+      }
+    }
+    setState(profiles: remaining);
+    await clashForMe.saveFile();
+    final removed = File('$profilesPath/$file');
+    if (await removed.exists()) await removed.delete();
+  }
+
   /// 校验本地订阅文件与配置里对应
   Future<ClashForMeConfig?> _profilesInitCheck(ClashForMeConfig? config) async {
     if (config == null) return null;
@@ -171,6 +312,7 @@ abstract class AppConfigBase with Store {
   }
 
   Future<void> checkSubscriptionUpdates() async {
+    if (!clashForMe.autoUpdateSubscriptions) return;
     if (_checkingSubscriptions) return;
     _checkingSubscriptions = true;
     try {
@@ -206,6 +348,17 @@ abstract class AppConfigBase with Store {
   /// Replaces [old] transactionally. The old file and metadata are kept until
   /// the new file has passed validation and, when active, Mihomo accepted it.
   Future<ProfileURL> refreshProfile(ProfileURL old) async {
+    if (_switchingProfile) throw MessageException('正在处理配置，请稍后重试');
+    _switchingProfile = true;
+    try {
+      return await _refreshProfile(old);
+    } finally {
+      _switchingProfile = false;
+    }
+  }
+
+  Future<ProfileURL> _refreshProfile(ProfileURL old) async {
+    final previous = clashForMe;
     final latest = await _request.getSubscribe(
       profile: AppJson.cloneProfileUrl(old),
       profilesDir: profilesPath,
@@ -238,6 +391,7 @@ abstract class AppConfigBase with Store {
       if (await oldFile.exists()) await oldFile.delete();
       return latest;
     } catch (_) {
+      runInAction(() => clashForMe = previous);
       if (activatedLatest && await oldFile.exists()) {
         try {
           await _request.changeConfig(oldFile.path);

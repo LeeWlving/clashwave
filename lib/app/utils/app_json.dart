@@ -53,6 +53,8 @@ class AppJson {
       value = _snapshot(map);
     } else if (T == ClashForMeConfig) {
       value = _appConfig(map);
+    } else if (T == ProfileBase) {
+      value = _profile(map);
     } else if (T == ProfileURL) {
       value = _profile(map) as ProfileURL?;
     } else {
@@ -246,6 +248,11 @@ class AppJson {
             _nullableString(map['subscription-user-agent']) ??
             DefaultConfigValue.subscriptionUserAgent,
         tunIf: _nullableBool(map['tun-if']),
+        lightMode: _nullableBool(map['light-mode']),
+        showTraySpeed: _nullableBool(map['show-tray-speed']) ?? true,
+        sortProxiesByDelay: _nullableBool(map['sort-proxies-by-delay']) ?? false,
+        autoUpdateSubscriptions:
+            _nullableBool(map['auto-update-subscriptions']) ?? true,
       );
 
   static Map<String, dynamic> _appConfigToMap(ClashForMeConfig value) => {
@@ -256,6 +263,10 @@ class AppJson {
     'delay-test-url': value.delayTestUrl,
     'subscription-user-agent': value.subscriptionUserAgent,
     'tun-if': value.tunIf,
+    'light-mode': value.lightMode,
+    'show-tray-speed': value.showTraySpeed,
+    'sort-proxies-by-delay': value.sortProxiesByDelay,
+    'auto-update-subscriptions': value.autoUpdateSubscriptions,
   };
 
   static ProfileBase? _profile(Map<String, dynamic> map) {

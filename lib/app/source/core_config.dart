@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:clash_for_flutter/app/bean/config_bean.dart';
 import 'package:clash_for_flutter/app/bean/tun_bean.dart';
 import 'package:clash_for_flutter/app/enum/type_enum.dart';
+import 'package:clash_for_flutter/app/exceptions/message_exception.dart';
 import 'package:clash_for_flutter/app/source/request.dart';
 import 'package:clash_for_flutter/app/source/logs_subscription.dart';
 import 'package:clash_for_flutter/app/utils/constants.dart';
@@ -46,7 +47,9 @@ abstract class CoreConfigBase with Store {
       ipv6: ipv6,
     );
     // Only explicit edits write configuration; reading core state is read-only.
-    await _request.patchConfigs(updated);
+    if (!await _request.patchConfigs(updated)) {
+      throw MessageException('Mihomo 未接受该设置');
+    }
     await updated.saveFile();
     clash = updated;
   }

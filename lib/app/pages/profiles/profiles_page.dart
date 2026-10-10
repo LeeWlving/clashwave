@@ -8,7 +8,7 @@ import 'package:clash_for_flutter/app/pages/profiles/profile_item.dart';
 import 'package:clash_for_flutter/app/pages/profiles/profiles_controller.dart';
 import 'package:clash_for_flutter/app/source/app_config.dart';
 import 'package:clash_for_flutter/app/utils/app_json.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:clash_for_flutter/app/source/desktop_dialogs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
@@ -114,51 +114,17 @@ class _ProfilesPageState extends State<ProfilesPage> {
     });
   }
 
-  dialogPickerFile({
+  Future<void> dialogPickerFile({
     required String label,
     required void Function(String) onOk,
     String? initialValue,
-  }) {
-    showDialog(
-      context: context,
-      builder: (cxt) {
-        var pathController = TextEditingController(text: initialValue);
-        return AlertDialog(
-          title: Text(label),
-          content: TextField(
-            readOnly: true,
-            decoration: InputDecoration(labelText: label),
-            controller: pathController,
-            onTap: () {
-              FilePicker.pickFiles(
-                    type: FileType.custom,
-                    allowedExtensions: ["yml", "yaml"],
-                  )
-                  .then((value) {
-                    if (value.isNotEmpty) {
-                      pathController.text = value.single.path ?? "";
-                    }
-                  })
-                  .catchError((_) {});
-            },
-          ),
-          actions: [
-            TextButton(
-              child: const Text("取消"),
-              onPressed: () => Navigator.of(cxt).pop(),
-            ),
-            TextButton(
-              child: const Text("确认"),
-              onPressed: () {
-                if (pathController.text.isEmpty) return;
-                Navigator.of(cxt).pop();
-                onOk(pathController.text);
-              },
-            ),
-          ],
-        );
-      },
-    );
+  }) async {
+    try {
+      final path = await DesktopDialogs.pickProfileFile();
+      if (path != null && path.isNotEmpty && mounted) onOk(path);
+    } catch (_) {
+      Asuka.showSnackBar(const SnackBar(content: Text('无法打开系统文件选择器')));
+    }
   }
 
   dialogInputValue({
@@ -200,7 +166,7 @@ class _ProfilesPageState extends State<ProfilesPage> {
       dialogPickerFile(
         label: "文件",
         initialValue: profile.path,
-        onOk: (v) => _controller.edit(profile..path = v),
+        onOk: (v) => _controller.replaceFile(profile, v),
       );
     } else if (profile is ProfileURL) {
       dialogInputValue(

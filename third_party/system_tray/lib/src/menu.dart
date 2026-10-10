@@ -24,7 +24,7 @@ class Menu {
 
   List<MenuItemBase>? _menus;
 
-  int _menuId = 1;
+  final int _menuId = _nextMenuId++;
 
   int _menuItemId = 1;
 
@@ -41,7 +41,6 @@ class Menu {
   }
 
   Future<bool> buildFrom(List<MenuItemBase> menus) async {
-    _menuId = _nextMenuId++;
     _menus = menus;
     _menuMap.putIfAbsent(_menuId, () => this);
     return await _createContextMenu(_menus!);

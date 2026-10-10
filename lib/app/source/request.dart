@@ -274,6 +274,18 @@ class Request {
         .then((res) => res.data?["delay"]);
   }
 
+  /// Test a whole policy group through Mihomo so automatic groups recalculate
+  /// their selection and clear a previously pinned node.
+  Future<Map<String, int?>> getGroupDelay(String name, String url) async {
+    final response = await _clashDio.get<Map<String, dynamic>>(
+      '/group/${_pathSegment(name)}/delay',
+      queryParameters: {'timeout': 2900, 'url': url},
+    );
+    return (response.data ?? const <String, dynamic>{}).map(
+      (node, delay) => MapEntry(node, delay is num ? delay.toInt() : null),
+    );
+  }
+
   /// 切换 Selector 中选中的代理
   Future<bool> changeProxy({
     required String name,

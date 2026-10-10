@@ -17,6 +17,7 @@ class LogsSubscription extends ChangeNotifier implements Disposable {
   final Queue<LogData> _logQueue = Queue<LogData>();
   StreamSubscription? _subscription;
   ReactionDisposer? _levelReaction;
+  bool _running = false;
 
   List<LogData> get logList => _logQueue.toList();
 
@@ -28,6 +29,7 @@ class LogsSubscription extends ChangeNotifier implements Disposable {
   }
 
   void startSubLogs() {
+    _running = true;
     _levelReaction ??= reaction(
       (_) => _core.clash.logLevel ?? LogLevel.info,
       (_) => reconnect(),
@@ -35,7 +37,16 @@ class LogsSubscription extends ChangeNotifier implements Disposable {
     );
   }
 
+  void pause() {
+    _running = false;
+    _levelReaction?.call();
+    _levelReaction = null;
+    _subscription?.cancel();
+    _subscription = null;
+  }
+
   void reconnect() {
+    if (!_running) return;
     _subscription?.cancel();
     final level = _core.clash.logLevel ?? LogLevel.info;
     _subscription = _request.logs(level).listen((event) {

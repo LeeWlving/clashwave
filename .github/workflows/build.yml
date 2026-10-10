@@ -242,6 +242,10 @@ jobs:
         run: sh macos/prepare_core.sh
       - name: Resolve locked dependencies
         run: flutter pub get --enforce-lockfile
+      - name: Test menu-bar presentation and native dialog contracts
+        run: >-
+          flutter test test/desktop_presentation_test.dart test/native_dialogs_test.dart
+          test/profile_importer_test.dart test/app_json_test.dart test/tray_menu_lifetime_test.dart
       - name: Build macOS release
         run: flutter build macos --release --no-pub
       - name: Read app version
