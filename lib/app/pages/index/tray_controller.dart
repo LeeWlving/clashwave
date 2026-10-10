@@ -293,7 +293,7 @@ class TrayController {
           }
           await _readProxies();
         })),
-        onTest: (group) => unawaited(_testDelay(group.all)),
+        onTest: (group) => unawaited(_testDelay(group.all, group: group.name)),
       ),
       MenuItemLabel(
         label: _testing ? '正在测速…' : '测试全部节点延迟',
@@ -495,18 +495,26 @@ class TrayController {
     await _readProxies();
   });
 
-  Future<void> _testDelay(Iterable<String> names) async {
+  Future<void> _testDelay(Iterable<String> names, {String? group}) async {
     if (_testing || _stopping) return;
     _testing = true;
     await _runAction(() async {
       await _refreshTray();
       final selected = _config.selectedFile;
       final url = _config.clashForMe.delayTestUrl;
-      final result = await const ProxyLatencyTester().test(
-        names.where((name) => !['DIRECT', 'REJECT', 'REJECT-DROP', 'PASS'].contains(name)),
-        (name) => _request.getProxyDelay(name, url),
-        cancelled: () => _stopping || selected != _config.selectedFile,
-      );
+      Map<String, int?>? result;
+      if (group != null) {
+        try {
+          result = await _request.getGroupDelay(group, url);
+        } catch (_) {
+          // Older Clash-compatible cores may not implement the group API.
+        }
+      }
+      result ??= await const ProxyLatencyTester().test(
+          names.where((name) => !['DIRECT', 'REJECT', 'REJECT-DROP', 'PASS'].contains(name)),
+          (name) => _request.getProxyDelay(name, url),
+          cancelled: () => _stopping || selected != _config.selectedFile,
+        );
       if (!_stopping && selected == _config.selectedFile) {
         _delays.addAll(result);
         await _readProxies();
