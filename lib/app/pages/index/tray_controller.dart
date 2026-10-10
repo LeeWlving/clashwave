@@ -148,6 +148,7 @@ class TrayController {
     if (_openingMenu || _stopping) return;
     _openingMenu = true;
     try {
+      _lightMode = !await windowManager.isVisible();
       await _core.asyncConfig();
       await _readProxies();
     } catch (_) {
@@ -213,27 +214,33 @@ class TrayController {
       TrayMenus.subscriptions(
         profiles: _config.profiles.toList(),
         selectedFile: _config.selectedFile,
-        onSelect: (file) => unawaited(_runAction(() async {
-          await _config.selectProfile(file);
-          await _readProxies();
-        })),
-        onUpdate: (profile) => unawaited(_runAction(() async {
-          await _config.refreshProfile(profile);
-          await _core.asyncConfig();
-          await _readProxies();
-        })),
+        onSelect: (file) => unawaited(
+          _runAction(() async {
+            await _config.selectProfile(file);
+            await _readProxies();
+          }),
+        ),
+        onUpdate: (profile) => unawaited(
+          _runAction(() async {
+            await _config.refreshProfile(profile);
+            await _core.asyncConfig();
+            await _readProxies();
+          }),
+        ),
         onManage: () => unawaited(_showPage('/profiles')),
       ),
       TrayMenus.proxies(
         snapshot: _proxies,
         mode: mode,
         unavailable: _proxyUnavailable,
-        onSelect: (group, node) => unawaited(_runAction(() async {
-          if (!await _request.changeProxy(name: group, select: node)) {
-            throw MessageException('Mihomo 未接受代理选择');
-          }
-          await _readProxies();
-        })),
+        onSelect: (group, node) => unawaited(
+          _runAction(() async {
+            if (!await _request.changeProxy(name: group, select: node)) {
+              throw MessageException('Mihomo 未接受代理选择');
+            }
+            await _readProxies();
+          }),
+        ),
         onManage: () => unawaited(_showPage('/proxys')),
       ),
       MenuSeparator(),
