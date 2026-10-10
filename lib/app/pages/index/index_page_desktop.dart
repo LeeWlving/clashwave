@@ -61,7 +61,9 @@ class _IndexDesktopPageState extends State<IndexDesktopPage>
   }
 
   @override
-  void onWindowHide() => _tray.presentation.windowHidden();
+  void onWindowEvent(String eventName) {
+    if (eventName == 'hide') _tray.presentation.windowHidden();
+  }
 
   /// 处理在移动端前后台
   @override

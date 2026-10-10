@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:asuka/asuka.dart';
 import 'package:clash_for_flutter/app/enum/type_enum.dart';
 import 'package:clash_for_flutter/app/bean/proxies_bean.dart';
-import 'package:clash_for_flutter/app/bean/group_bean.dart';
 import 'package:clash_for_flutter/app/bean/profile_base_bean.dart';
 import 'package:clash_for_flutter/app/bean/profile_file_bean.dart';
 import 'package:clash_for_flutter/app/bean/profile_url_bean.dart';

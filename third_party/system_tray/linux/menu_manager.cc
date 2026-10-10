@@ -196,7 +196,7 @@ FlMethodResponse* MenuManager::set_check(FlValue* args) {
 }
 
 bool MenuManager::add_menu(int64_t menu_id, std::unique_ptr<Menu> menu) {
-  menus_map_.emplace(menu_id, std::move(menu));
+  menus_map_[menu_id] = std::move(menu);
   return true;
 }
 
