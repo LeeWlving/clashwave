@@ -13,6 +13,7 @@ import 'package:clash_for_flutter/core_control.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:dio/dio.dart';
+import 'package:window_manager/window_manager.dart';
 
 class InitPage extends StatefulWidget {
   const InitPage({super.key});
@@ -93,6 +94,10 @@ class _InitPageState extends State<InitPage> {
           try {
             if (!_skipDataDownloads) await _config.asyncProfile();
           } catch (error) {
+            if (Platform.isMacOS) {
+              await windowManager.show();
+              await windowManager.focus();
+            }
             Asuka.showSnackBar(
               SnackBar(content: Text('订阅配置加载失败，请更新或更换订阅：$error')),
             );
@@ -104,7 +109,12 @@ class _InitPageState extends State<InitPage> {
           _logs.startSubLogs(); // 启动日志订阅
           Modular.to.navigate("/tab");
         })
-        .onError((error, stackTrace) {
+        .onError((error, stackTrace) async {
+          if (!mounted) return;
+          if (Platform.isMacOS) {
+            await windowManager.show();
+            await windowManager.focus();
+          }
           if (!mounted) return;
           setState(() => _isLoading = false);
           Modular.to.navigate("/error");

@@ -71,7 +71,18 @@ class ProfileController {
         break;
     }
 
-    return handle.then((p) {
+    return handle.then((p) async {
+      if (_config.profiles.isEmpty) {
+        try {
+          if (!await _request.changeConfig('${_config.profilesPath}/${p.file}')) {
+            throw MessageException('Mihomo 拒绝了该订阅');
+          }
+        } catch (_) {
+          final file = File('${_config.profilesPath}/${p.file}');
+          if (await file.exists()) await file.delete();
+          rethrow;
+        }
+      }
       var tempList = _config.profiles.toList();
       tempList.add(p);
       _config.setState(profiles: tempList);
@@ -81,8 +92,7 @@ class ProfileController {
   /// 选择某源
   Future<void> select(String file) async {
     try {
-      await _request.changeConfig("${_config.profilesPath}/$file");
-      _config.setState(selectedFile: file);
+      await _config.selectProfile(file);
     } catch (error) {
       Asuka.showSnackBar(SnackBar(content: Text('无法加载该订阅：$error')));
     }
@@ -102,16 +112,21 @@ class ProfileController {
   }
 
   /// 移除源
-  void removeProfile(String file) {
+  Future<void> removeProfile(String file) async {
     var isActive = _config.selectedFile == file;
     var tempList = _config.profiles.toList();
     tempList.removeWhere((e) => e.file == file);
     if (isActive && tempList.isNotEmpty) {
-      _config.setState(selectedFile: tempList.first.file, profiles: tempList);
-    } else {
-      _config.setState(profiles: tempList);
+      try {
+        await _config.selectProfile(tempList.first.file);
+      } catch (error) {
+        Asuka.showSnackBar(SnackBar(content: Text('无法移除当前订阅：$error')));
+        return;
+      }
     }
-    File("${Constants.homeDir.path}${Constants.profilesPath}/$file").delete();
+    _config.setState(profiles: tempList);
+    final removed = File("${Constants.homeDir.path}${Constants.profilesPath}/$file");
+    if (await removed.exists()) await removed.delete();
   }
 
   /// 更新源(仅限URL)

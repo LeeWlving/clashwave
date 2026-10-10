@@ -14,6 +14,7 @@ import 'package:clash_for_flutter/app/bean/proxy_bean.dart';
 import 'package:clash_for_flutter/app/bean/proxy_providers_bean.dart';
 import 'package:clash_for_flutter/app/bean/sub_userinfo_bean.dart';
 import 'package:clash_for_flutter/app/enum/type_enum.dart';
+import 'package:clash_for_flutter/app/exceptions/message_exception.dart';
 import 'package:clash_for_flutter/app/utils/constants.dart';
 import 'package:clash_for_flutter/app/utils/app_json.dart';
 import 'package:dio/dio.dart';
@@ -29,7 +30,6 @@ class Request {
   final _dio = Dio(
     BaseOptions(
       // Subscription services use this header to choose the output format.
-      // `clash.meta` requests a complete Mihomo-compatible YAML file.
       headers: {'User-Agent': DefaultConfigValue.subscriptionUserAgent},
       connectTimeout: const Duration(seconds: 3),
       receiveTimeout: const Duration(seconds: 30),
@@ -102,6 +102,52 @@ class Request {
   Future<void> validateSubscriptionFile(String path) =>
       SubscriptionValidation.validateFile(File(path));
 
+  Future<Response> _downloadSubscription(String url, String path) async {
+    // Keep a custom User-Agent first. Some panels reject an unversioned
+    // client identifier, while older panels only recognize ClashX.
+    final userAgents = <String>{
+      _dio.options.headers['User-Agent'].toString(),
+      'mihomo/1.19.31',
+      'ClashX/1.116.1',
+    }.toList();
+    for (var index = 0; index < userAgents.length; index++) {
+      try {
+        return await _dio.download(
+          url,
+          path,
+          options: Options(headers: {'User-Agent': userAgents[index]}),
+        );
+      } on DioException catch (error) {
+        if (error.response?.statusCode == HttpStatus.forbidden &&
+            index < userAgents.length - 1) {
+          final partial = File(path);
+          if (await partial.exists()) await partial.delete();
+          continue;
+        }
+        // Never include a response body, request URL or raw exception here:
+        // subscription URLs contain credentials and servers may echo them.
+        final status = error.response?.statusCode;
+        if (status == HttpStatus.forbidden) {
+          throw MessageException(
+            '订阅服务器拒绝访问（HTTP 403），已尝试兼容客户端标识。'
+            '请检查订阅链接、套餐有效期和剩余流量，或在设置中指定服务商要求的 User-Agent。',
+          );
+        }
+        if (status != null) {
+          throw MessageException('订阅下载失败（HTTP $status），请检查订阅链接或稍后重试');
+        }
+        throw MessageException(switch (error.type) {
+          DioExceptionType.connectionTimeout ||
+          DioExceptionType.sendTimeout ||
+          DioExceptionType.receiveTimeout => '订阅下载超时，请稍后重试',
+          DioExceptionType.cancel => '订阅下载已取消',
+          _ => '无法连接订阅服务器，请检查网络后重试',
+        });
+      }
+    }
+    throw StateError('No subscription client identifiers configured');
+  }
+
   Future<Response> downFile({
     required String urlPath,
     required String savePath,
@@ -129,7 +175,7 @@ class Request {
     if (await partial.exists()) await partial.delete();
 
     try {
-      final resp = await downFile(urlPath: profile.url, savePath: partial.path);
+      final resp = await _downloadSubscription(profile.url, partial.path);
       await SubscriptionValidation.validateFile(partial);
       await partial.rename(target.path);
       String? filename;
@@ -163,7 +209,7 @@ class Request {
       // 解析更新间隔
       var value = resp.headers.value("profile-update-interval");
       if (value != null && profile.interval == 0) {
-        profile.interval = int.parse(value);
+        profile.interval = int.tryParse(value) ?? 0;
       }
       return profile
         ..time = time

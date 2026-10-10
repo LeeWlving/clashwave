@@ -26,6 +26,7 @@ abstract class AppConfigBase with Store {
   final _core = Modular.get<CoreConfig>();
   Timer? _subscriptionTimer;
   bool _checkingSubscriptions = false;
+  bool _switchingProfile = false;
 
   final String profilesPath =
       "${Constants.homeDir.path}${Constants.profilesPath}";
@@ -75,16 +76,26 @@ abstract class AppConfigBase with Store {
       (ClashForMeConfig config) => config.saveFile(),
       delay: 1000,
     );
-    reaction((_) => selectedFile, (String? file) {
-      if (file == null) {
-        return;
-      }
+  }
 
-      if (!File(file).isAbsolute) {
-        file = "$profilesPath/$file";
+  /// Publish the selected profile only after the core accepts it. Both the
+  /// dashboard and menu bar use this path, avoiding duplicate reloads.
+  Future<void> selectProfile(String file) async {
+    if (!profiles.any((profile) => profile.file == file)) {
+      throw MessageException('该订阅已被移除');
+    }
+    if (_switchingProfile) throw MessageException('正在切换订阅，请稍后重试');
+    _switchingProfile = true;
+    try {
+      if (!await _request.changeConfig('$profilesPath/$file')) {
+        throw MessageException('Mihomo 拒绝了该订阅，保留当前配置');
       }
-      _request.changeConfig(file);
-    });
+      setState(selectedFile: file);
+      await clashForMe.saveFile();
+      await _core.asyncConfig();
+    } finally {
+      _switchingProfile = false;
+    }
   }
 
   /// 校验本地订阅文件与配置里对应
