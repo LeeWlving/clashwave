@@ -55,6 +55,15 @@ flutter build macos --release
 应用位于 `build/macos/Build/Products/Release/ClashWave.app`。构建会将内核放入
 `Contents/MacOS/mihomo`；缺少内核时会直接终止构建，避免生成无法启动的应用。
 
+构建完成后可生成 DMG 安装镜像：
+
+```bash
+bash scripts/create-macos-dmg.sh 2.0.0
+```
+
+输出为 `dist/ClashWave-2.0.0-macos-universal.dmg`。打开镜像后，将 `ClashWave.app`
+拖入 `Applications` 即可安装。打包脚本会校验镜像，并挂载检查应用、Mihomo 内核与安装入口。
+
 Linux 构建前先准备对应架构的 Mihomo：
 
 ```bash
@@ -144,10 +153,18 @@ GitHub Actions 使用以下加密变量。密钥内容必须是 JKS/PFX 文件�
 | `WINDOWS_CERTIFICATE_PASSWORD` | PFX 密码（GitHub） |
 
 GitHub 的源码流水线监听 `master`、面向 `master` 的 Pull Request 以及 `v*` tag。普通分支
-构建会运行静态分析和测试，并生成 Android AAB、Windows 安装包/便携包、macOS 通用包和
-Linux x64 便携包。`v*` tag 会把这些产物发布到 GitHub Releases；Android 与 Windows 的
-tag 构建缺少对应签名变量时会直接失败。所有平台均固定 Flutter 版本，Mihomo 下载文件会先
-校验 SHA-256 再参与构建。
+构建会运行静态分析和测试，并生成 Android AAB、Windows 安装包/便携包、macOS 通用 DMG 和
+Linux x64 便携包。全部平台成功后统一汇总产物，并生成 `SHA256SUMS.txt`。
+
+- `master` 推送或在 `master` 上手动运行：自动创建或更新 GitHub Releases 中的 `nightly`
+  开发版，下载地址保持不变。开发版可能没有 Android/Windows 正式签名，macOS 尚未公证。
+- Pull Request：只构建并上传 Actions artifacts，不发布 Release。
+- `v*` tag：发布对应正式版；Android 与 Windows 缺少对应签名变量时会直接失败。
+
+Actions artifacts 与 GitHub Releases 是两个不同的下载入口。没有推送 `v*` 标签时，旧流程
+只会生成 artifacts，不会创建 Release。新流程的开发版入口为
+[nightly Release](https://github.com/LeeWlving/clashwave/releases/tag/nightly)。所有平台均固定
+Flutter 版本，Mihomo 下载文件会先校验 SHA-256 再参与构建。
 
 完整的签名、VPN/前台服务申报、Data safety 和上线检查参见
 [Google Play 发布清单](docs/google-play-release.md)。

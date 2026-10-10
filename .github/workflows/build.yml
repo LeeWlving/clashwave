@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   FLUTTER_VERSION: '3.47.5'
@@ -100,11 +100,6 @@ jobs:
           name: ClashWave-android-aab
           path: build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
-      - name: Publish AAB to GitHub release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v3
-        with:
-          files: build/app/outputs/bundle/release/app-release.aab
 
   windows:
     name: Windows x64
@@ -230,13 +225,6 @@ jobs:
             dist/*.zip
             dist/*.exe
           if-no-files-found: error
-      - name: Publish Windows artifacts to GitHub release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v3
-        with:
-          files: |
-            dist/*.zip
-            dist/*.exe
 
   macos:
     name: macOS universal
@@ -262,23 +250,16 @@ jobs:
         run: |
           version="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml)"
           echo "value=${version%%+*}" >> "$GITHUB_OUTPUT"
-      - name: Create application archive
-        run: |
-          mkdir -p dist
-          ditto -c -k --sequesterRsrc --keepParent \
-            build/macos/Build/Products/Release/ClashWave.app \
-            "dist/ClashWave-${{ steps.version.outputs.value }}-macos-universal.zip"
+      - name: Create and verify DMG
+        env:
+          APP_VERSION: ${{ steps.version.outputs.value }}
+        run: bash scripts/create-macos-dmg.sh "$APP_VERSION"
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v7
         with:
           name: ClashWave-macos-universal
-          path: dist/*.zip
+          path: dist/*.dmg
           if-no-files-found: error
-      - name: Publish macOS artifact to GitHub release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v3
-        with:
-          files: dist/*.zip
 
   linux:
     name: Linux x64
@@ -321,8 +302,74 @@ jobs:
           name: ClashWave-linux-x64
           path: dist/*.tar.gz
           if-no-files-found: error
-      - name: Publish Linux artifact to GitHub release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v3
+
+  release:
+    name: Collect and publish release assets
+    needs: [android, windows, macos, linux]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
         with:
-          files: dist/*.tar.gz
+          pattern: ClashWave-*
+          path: raw-assets
+      - name: Prepare release assets and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          cp raw-assets/ClashWave-android-aab/app-release.aab \
+            release-assets/ClashWave-android.aab
+          cp raw-assets/ClashWave-windows-x64/*-portable.zip \
+            release-assets/ClashWave-windows-x64-portable.zip
+          cp raw-assets/ClashWave-windows-x64/*-setup.exe \
+            release-assets/ClashWave-windows-x64-setup.exe
+          cp raw-assets/ClashWave-macos-universal/*.dmg \
+            release-assets/ClashWave-macos-universal.dmg
+          cp raw-assets/ClashWave-linux-x64/*.tar.gz \
+            release-assets/ClashWave-linux-x64.tar.gz
+          (cd release-assets && sha256sum * > SHA256SUMS.txt)
+      - name: Upload complete release bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: ClashWave-release-assets
+          path: release-assets/*
+          if-no-files-found: error
+          overwrite: true
+      - name: Publish GitHub release
+        if: >-
+          github.event_name != 'pull_request' &&
+          (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'nightly' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [[ "$RELEASE_TAG" == nightly ]]; then
+            printf '%s\n\n%s\n\n%s\n' \
+              'Development build from master. Android AAB and Windows binaries may be unsigned; macOS is not notarized.' \
+              "Commit: $GITHUB_SHA" "Build: $RUN_URL" > release-notes.md
+            if gh release view nightly >/dev/null 2>&1; then
+              gh release upload nightly release-assets/* --clobber
+              gh api --method PATCH "repos/$GH_REPO/git/refs/tags/nightly" \
+                -f sha="$GITHUB_SHA" -F force=true
+              gh release edit nightly --title 'ClashWave development build' \
+                --notes-file release-notes.md --prerelease --latest=false
+            else
+              gh release create nightly release-assets/* --target "$GITHUB_SHA" \
+                --title 'ClashWave development build' --notes-file release-notes.md \
+                --prerelease --latest=false
+            fi
+          elif gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release-assets/* --clobber
+          else
+            gh release create "$RELEASE_TAG" release-assets/* --verify-tag \
+              --title "ClashWave $RELEASE_TAG" --generate-notes
+          fi
+          printf 'Release: https://github.com/%s/releases/tag/%s\n' \
+            "$GH_REPO" "$RELEASE_TAG" >> "$GITHUB_STEP_SUMMARY"
