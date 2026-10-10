@@ -65,6 +65,7 @@ class TrayController {
   bool _testing = false;
   bool _profileAction = false;
   bool? _loginEnabled;
+  bool _preparingMenu = false;
   bool _openingMenu = false;
   bool _proxyUnavailable = false;
   Proxies? _proxies;
@@ -212,14 +213,19 @@ class TrayController {
   }
 
   Future<void> _openMenu() async {
-    if (_openingMenu || _stopping) return;
-    // Open the cached menu immediately; a dead REST socket cannot block it.
-    await _refreshTray();
-    _openingMenu = true;
-    unawaited(_syncSnapshot());
+    if (_preparingMenu || _openingMenu || _stopping) return;
+    _preparingMenu = true;
     try {
+      // Use live selections when the local core answers promptly. If it is
+      // unavailable, fall back to the cache and keep restart actions reachable.
+      await _syncSnapshot().timeout(
+        const Duration(milliseconds: 200), onTimeout: () {},
+      );
+      await _refreshTray();
+      _openingMenu = true;
       await _tray.popUpContextMenu();
     } finally {
+      _preparingMenu = false;
       _openingMenu = false;
       if (_menuDirty) await _refreshTray();
     }
