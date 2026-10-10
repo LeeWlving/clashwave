@@ -3,7 +3,7 @@ import { defineConfig } from "vitepress";
 const repository = "https://github.com/LeeWlving/clashwave";
 
 export default defineConfig({
-  base: "/clashwave/",
+  base: "/",
   cleanUrls: true,
   srcExclude: ["README.md"],
   lastUpdated: true,
