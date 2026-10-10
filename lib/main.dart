@@ -37,6 +37,10 @@ void main() async {
     );
 
     await windowManager.waitUntilReadyToShow(windowOptions, () async {
+      if (Platform.isMacOS) {
+        await windowManager.hide();
+        return;
+      }
       await windowManager.show();
       await windowManager.focus();
     });
@@ -47,6 +51,12 @@ void main() async {
   runApp(
     StartupApp(
       initialize: initializeCore,
+      onInitializationError: () async {
+        if (Platform.isMacOS) {
+          await windowManager.show();
+          await windowManager.focus();
+        }
+      },
       builder: (_) => ModularApp(module: AppModule(), child: const AppWidget()),
     ),
   );

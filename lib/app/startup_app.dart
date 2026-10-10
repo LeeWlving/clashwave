@@ -9,17 +9,33 @@ class StartupApp extends StatefulWidget {
     super.key,
     required this.initialize,
     required this.builder,
+    this.onInitializationError,
   });
 
   final Future<void> Function() initialize;
   final WidgetBuilder builder;
+  final Future<void> Function()? onInitializationError;
 
   @override
   State<StartupApp> createState() => _StartupAppState();
 }
 
 class _StartupAppState extends State<StartupApp> {
-  late final Future<void> _initialization = Future.sync(widget.initialize);
+  late final Future<void> _initialization = _initialize();
+
+  Future<void> _initialize() async {
+    try {
+      await widget.initialize();
+    } catch (_) {
+      // A background launch must still reveal a fatal initialization error.
+      try {
+        await widget.onInitializationError?.call();
+      } catch (_) {
+        // Preserve the original core error if showing the window fails.
+      }
+      rethrow;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

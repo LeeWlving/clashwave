@@ -36,4 +36,36 @@ void main() {
     expect(find.textContaining('Mihomo core not found'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('background startup reveals a fatal error exactly once', (tester) async {
+    var revealed = 0;
+    var initialized = 0;
+    final app = StartupApp(
+      initialize: () async {
+        initialized++;
+        throw StateError('core failed');
+      },
+      onInitializationError: () async => revealed++,
+      builder: (_) => const SizedBox(),
+    );
+    await tester.pumpWidget(app);
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(app);
+    await tester.pumpAndSettle();
+    expect(revealed, 1);
+    expect(initialized, 1);
+    expect(find.textContaining('core failed'), findsOneWidget);
+  });
+
+  testWidgets('successful background startup never requests an error window', (tester) async {
+    var revealed = false;
+    await tester.pumpWidget(StartupApp(
+      initialize: () async {},
+      onInitializationError: () async => revealed = true,
+      builder: (_) => const MaterialApp(home: Text('Ready')),
+    ));
+    await tester.pumpAndSettle();
+    expect(revealed, isFalse);
+    expect(find.text('Ready'), findsOneWidget);
+  });
 }

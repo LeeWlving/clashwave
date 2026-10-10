@@ -3,6 +3,9 @@ import 'dart:io';
 
 import 'package:asuka/asuka.dart';
 import 'package:clash_for_flutter/app/enum/type_enum.dart';
+import 'package:clash_for_flutter/app/bean/proxies_bean.dart';
+import 'package:clash_for_flutter/app/exceptions/message_exception.dart';
+import 'package:clash_for_flutter/app/pages/index/tray_menus.dart';
 import 'package:clash_for_flutter/app/pages/router.dart';
 import 'package:clash_for_flutter/app/source/app_config.dart';
 import 'package:clash_for_flutter/app/source/core_config.dart';
@@ -39,7 +42,10 @@ class TrayController {
   bool _stopping = false;
 
   bool _initialized = false;
-  bool _lightMode = false;
+  bool _lightMode = Platform.isMacOS;
+  bool _openingMenu = false;
+  bool _proxyUnavailable = false;
+  Proxies? _proxies;
   bool? _lastEnabled;
   int _refreshGeneration = 0;
   String _appVersion = '—';
@@ -66,6 +72,7 @@ class TrayController {
       reaction((_) => _config.systemProxy, (_) => unawaited(_refreshTray())),
       reaction((_) => _core.clash.mode, (_) => unawaited(_refreshTray())),
       reaction((_) => _core.tunEnable, (_) => unawaited(_refreshTray())),
+      reaction((_) => _config.clashForMe, (_) => unawaited(_refreshTray())),
     ]);
 
     await _tray.initSystemTray(
@@ -76,12 +83,12 @@ class TrayController {
     _tray.registerSystemTrayEventHandler((event) {
       if (event == kSystemTrayEventClick) {
         if (Platform.isMacOS) {
-          unawaited(_tray.popUpContextMenu());
+          unawaited(_openMenu());
         } else {
           unawaited(_showPage('/home'));
         }
       } else if (event == kSystemTrayEventRightClick) {
-        unawaited(_tray.popUpContextMenu());
+        unawaited(_openMenu());
       }
     });
     await _refreshTray(forceIcon: true);
@@ -126,6 +133,35 @@ class TrayController {
   }
 
   bool get _isEnabled => _config.systemProxy || _core.tunEnable;
+
+  Future<void> _readProxies() async {
+    try {
+      _proxies = await _request.getProxies();
+      _proxyUnavailable = _proxies == null;
+    } catch (_) {
+      _proxies = null;
+      _proxyUnavailable = true;
+    }
+  }
+
+  Future<void> _openMenu() async {
+    if (_openingMenu || _stopping) return;
+    _openingMenu = true;
+    try {
+      _lightMode = !await windowManager.isVisible();
+      await _core.asyncConfig();
+      await _readProxies();
+    } catch (_) {
+      _proxies = null;
+      _proxyUnavailable = true;
+    }
+    try {
+      await _refreshTray();
+      await _tray.popUpContextMenu();
+    } finally {
+      _openingMenu = false;
+    }
+  }
 
   String get _toolTip => _isEnabled ? 'ClashWave · 已开启' : 'ClashWave · 未开启';
 
@@ -175,13 +211,37 @@ class TrayController {
           _modeItem(Mode.Direct, mode),
         ],
       ),
-      MenuItemLabel(
-        label: '订阅',
-        onClicked: (_) => unawaited(_showPage('/profiles')),
+      TrayMenus.subscriptions(
+        profiles: _config.profiles.toList(),
+        selectedFile: _config.selectedFile,
+        onSelect: (file) => unawaited(
+          _runAction(() async {
+            await _config.selectProfile(file);
+            await _readProxies();
+          }),
+        ),
+        onUpdate: (profile) => unawaited(
+          _runAction(() async {
+            await _config.refreshProfile(profile);
+            await _core.asyncConfig();
+            await _readProxies();
+          }),
+        ),
+        onManage: () => unawaited(_showPage('/profiles')),
       ),
-      MenuItemLabel(
-        label: '代理',
-        onClicked: (_) => unawaited(_showPage('/proxys')),
+      TrayMenus.proxies(
+        snapshot: _proxies,
+        mode: mode,
+        unavailable: _proxyUnavailable,
+        onSelect: (group, node) => unawaited(
+          _runAction(() async {
+            if (!await _request.changeProxy(name: group, select: node)) {
+              throw MessageException('Mihomo 未接受代理选择');
+            }
+            await _readProxies();
+          }),
+        ),
+        onManage: () => unawaited(_showPage('/proxys')),
       ),
       MenuSeparator(),
       MenuItemCheckbox(
