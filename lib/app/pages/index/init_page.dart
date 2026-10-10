@@ -6,6 +6,7 @@ import 'package:clash_for_flutter/app/component/sys_app_bar.dart';
 import 'package:clash_for_flutter/app/exceptions/message_exception.dart';
 import 'package:clash_for_flutter/app/source/app_config.dart';
 import 'package:clash_for_flutter/app/source/core_config.dart';
+import 'package:clash_for_flutter/app/source/desktop_dialogs.dart';
 import 'package:clash_for_flutter/app/source/logs_subscription.dart';
 import 'package:clash_for_flutter/app/source/request.dart';
 import 'package:clash_for_flutter/app/utils/constants.dart';
@@ -95,18 +96,18 @@ class _InitPageState extends State<InitPage> {
             if (!_skipDataDownloads) await _config.asyncProfile();
           } catch (error) {
             if (Platform.isMacOS) {
-              await windowManager.show();
-              await windowManager.focus();
+              await DesktopDialogs.message('订阅配置加载失败', '请从托盘更新或更换订阅：$error');
+            } else {
+              Asuka.showSnackBar(
+                SnackBar(content: Text('订阅配置加载失败，请更新或更换订阅：$error')),
+              );
             }
-            Asuka.showSnackBar(
-              SnackBar(content: Text('订阅配置加载失败，请更新或更换订阅：$error')),
-            );
           }
         })
         .then((value) async {
           await _core.asyncConfig();
           if (!mounted) return;
-          _logs.startSubLogs(); // 启动日志订阅
+          if (!Constants.isDesktop || !_config.clashForMe.lightMode) _logs.startSubLogs();
           Modular.to.navigate("/tab");
         })
         .onError((error, stackTrace) async {

@@ -27,12 +27,12 @@ void main() async {
 
   if (Constants.isDesktop) {
     await windowManager.ensureInitialized();
-    WindowOptions windowOptions = const WindowOptions(
+    WindowOptions windowOptions = WindowOptions(
       minimumSize: Size(460, 600),
       size: Size(900, 650),
       center: true,
       backgroundColor: Colors.transparent,
-      skipTaskbar: false,
+      skipTaskbar: Platform.isMacOS,
       titleBarStyle: TitleBarStyle.hidden,
     );
 
@@ -80,6 +80,15 @@ Future<void> initializeCore() async {
   }
   final appConfig = ClashForMeConfig.formFile();
   await appConfig.saveFile();
+  if (Constants.isDesktop) {
+    await windowManager.setSkipTaskbar(appConfig.lightMode);
+    if (appConfig.lightMode) {
+      await windowManager.hide();
+    } else {
+      await windowManager.show();
+      await windowManager.focus();
+    }
+  }
   await Config.ensureController(
     geoxUrls: appConfig.geoxUrls,
     chooseAvailablePort: Constants.isDesktop,

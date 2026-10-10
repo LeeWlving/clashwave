@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:clash_for_flutter/app/bean/clash_for_me_config_bean.dart';
 import 'package:clash_for_flutter/app/bean/config_bean.dart';
+import 'package:clash_for_flutter/app/bean/profile_base_bean.dart';
+import 'package:clash_for_flutter/app/bean/profile_file_bean.dart';
 import 'package:clash_for_flutter/app/bean/group_bean.dart';
 import 'package:clash_for_flutter/app/bean/profile_url_bean.dart';
 import 'package:clash_for_flutter/app/bean/proxies_bean.dart';
@@ -64,6 +68,7 @@ void main() {
       delayTestUrl: 'https://www.gstatic.com/generate_204',
       subscriptionUserAgent: 'ClashWave/test',
       tunIf: true,
+      lightMode: true, showTraySpeed: false, sortProxiesByDelay: true, autoUpdateSubscriptions: false,
     );
 
     final decoded = AppJson.fromJson<ClashForMeConfig>(AppJson.encode(source))!;
@@ -76,5 +81,37 @@ void main() {
     expect(decodedProfile.interval, 24);
     expect(decoded.subscriptionUserAgent, 'ClashWave/test');
     expect(decoded.tunIf, isTrue);
+    expect(decoded.lightMode, isTrue);
+    expect(decoded.showTraySpeed, isFalse);
+    expect(decoded.sortProxiesByDelay, isTrue);
+    expect(decoded.autoUpdateSubscriptions, isFalse);
+    final edited = decoded.copyWith(delayTestUrl: 'https://example.com/test');
+    expect(edited.lightMode, isTrue);
+    expect(edited.showTraySpeed, isFalse);
+    expect(edited.sortProxiesByDelay, isTrue);
+    expect(edited.autoUpdateSubscriptions, isFalse);
   });
+  test('renaming a file profile preserves its source and does not mutate the snapshot', () {
+    final original = ProfileFile.emptyBean()..file = 'local.yaml'..name = 'Original'..path = '/tmp/local.yml';
+    final copy = AppJson.fromJson<ProfileBase>(AppJson.encode(original))!;
+    copy.name = 'Renamed';
+    expect(copy, isA<ProfileFile>());
+    expect((copy as ProfileFile).path, original.path);
+    expect(copy.file, original.file);
+    expect(original.name, 'Original');
+  });
+
+  test('legacy settings use macOS menu-bar startup and explicit GUI preferences survive decoding', () {
+    final legacy = AppJson.fromMap<ClashForMeConfig>({
+      'profiles': [], 'mmdb-url': 'https://example.com/country.mmdb',
+      'delay-test-url': 'https://example.com/test',
+    })!;
+    expect(legacy.lightMode, Platform.isMacOS);
+    expect(legacy.autoUpdateSubscriptions, isTrue);
+    expect(legacy.showTraySpeed, isTrue);
+    final withGui = legacy.copyWith(lightMode: false);
+    final restored = AppJson.fromJson<ClashForMeConfig>(AppJson.encode(withGui))!;
+    expect(restored.lightMode, isFalse);
+  });
+
 }

@@ -17,6 +17,7 @@ class _IndexDesktopPageState extends State<IndexDesktopPage>
     with WindowListener, WidgetsBindingObserver {
   final _tray = Modular.get<TrayController>();
   final _lifeEvent = DesktopLifecycle.instance.isActive;
+  late final VoidCallback _lifeListener = () => appListener(_lifeEvent.value);
 
   final PageController _page = PageController();
 
@@ -28,19 +29,20 @@ class _IndexDesktopPageState extends State<IndexDesktopPage>
     // 移动端前后台监听
     WidgetsBinding.instance.addObserver(this);
     // 桌面端前后台监听
-    _lifeEvent.addListener(() => appListener(_lifeEvent.value));
+    _lifeEvent.addListener(_lifeListener);
     // 接管窗口的关闭按钮
     windowManager.setPreventClose(true);
     // 托盘初始化
     _tray.attachPageController(_page);
     _tray.init();
-    Modular.to.navigate("/tab/home/");
+    if (!_tray.presentation.lightMode) Modular.to.navigate("/tab/home/");
   }
 
   @override
   void dispose() {
     windowManager.removeListener(this);
     WidgetsBinding.instance.removeObserver(this);
+    _lifeEvent.removeListener(_lifeListener);
     _tray.detachPageController(_page);
     _page.dispose();
     super.dispose();
@@ -49,14 +51,17 @@ class _IndexDesktopPageState extends State<IndexDesktopPage>
   @override
   void onWindowClose() async {
     if (await windowManager.isPreventClose()) {
-      windowManager.hide();
+      await _tray.presentation.hideDashboard();
     }
   }
 
   @override
   void onWindowFocus() {
-    setState(() {});
+    _tray.presentation.windowFocused();
   }
+
+  @override
+  void onWindowHide() => _tray.presentation.windowHidden();
 
   /// 处理在移动端前后台
   @override
@@ -75,19 +80,24 @@ class _IndexDesktopPageState extends State<IndexDesktopPage>
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        AppDrawer(page: _page),
-        Expanded(
-          child: PageView.builder(
-            controller: _page,
-            itemCount: menu.size,
-            onPageChanged: (i) =>
-                Modular.to.navigate("/tab${menu.getPath(i)}/"),
-            itemBuilder: (_, _) => const RouterOutlet(),
-          ),
-        ),
-      ],
+    return ValueListenableBuilder<bool>(
+      valueListenable: _tray.presentation.dashboardVisible,
+      builder: (_, visible, _) {
+        if (!visible) return const SizedBox.shrink();
+        return Row(
+          children: [
+            AppDrawer(page: _page),
+            Expanded(
+              child: PageView.builder(
+                controller: _page,
+                itemCount: menu.size,
+                onPageChanged: (i) => Modular.to.navigate("/tab${menu.getPath(i)}/"),
+                itemBuilder: (_, _) => const RouterOutlet(),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

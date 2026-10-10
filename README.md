@@ -5,7 +5,7 @@
 - 官网：[leewlving.github.io/clashwave](https://leewlving.github.io/clashwave/)
 - 源码：[github.com/LeeWlving/clashwave](https://github.com/LeeWlving/clashwave)
 - Android application ID：`org.eu.liwenyun`
-- 当前版本：`2.0.0+4`
+- 当前版本：`2.0.1+5`
 - Android 内核：Mihomo `1.19.31`
 
 > ClashWave 不提供代理节点或订阅服务。配置文件、订阅地址及代理服务器均由用户自行选择和管理。
@@ -20,6 +20,19 @@
 - Android 系统 VPN、快捷设置磁贴、Always-on VPN、网络切换恢复和前台服务通知
 - 支持 `clash://install-config` 深链导入
 - 桌面端系统代理、状态托盘，以及普通权限 GUI 与 Windows SCM/macOS LaunchDaemon 特权内核服务
+
+## macOS 菜单栏使用
+
+默认启动时仅显示菜单栏图标并运行内核，仪表板页面在点击“打开仪表板”时才加载。
+关闭仪表板后继续代理，并释放仪表板页面及其数据订阅。再次打开 App 不会自动弹出仪表板。
+“设置 → 启动时打开仪表板”可改变启动偏好，临时打开界面不改变此设置。
+
+代理组直接列在菜单主层，按配置顺序显示；选择组支持切换节点，自动组显示当前节点，
+负载均衡组不标记单一当前节点。各组提供延迟测试，可开启按延迟排序；全局模式显示 GLOBAL。
+“订阅 / 配置”可导入本地 YAML 或 URL、切换、更新、重命名、修改更新间隔、移除配置。
+文件导入使用系统文件选择器，订阅输入和错误提示使用 macOS 原生对话框，无需打开仪表板。
+菜单还提供系统代理、TUN、规则/全局/直连、局域网连接、日志等级、菜单栏网速、代理命令、
+关闭连接、配置目录和内核重启。登录时启动使用系统登录项 API（macOS 13 及以上）。
 
 ## 技术栈
 
@@ -58,10 +71,10 @@ flutter build macos --release
 构建完成后可生成 DMG 安装镜像：
 
 ```bash
-bash scripts/create-macos-dmg.sh 2.0.0
+bash scripts/create-macos-dmg.sh 2.0.1
 ```
 
-输出为 `dist/ClashWave-2.0.0-macos-universal.dmg`。打开镜像后，将 `ClashWave.app`
+输出为 `dist/ClashWave-2.0.1-macos-universal.dmg`。打开镜像后，将 `ClashWave.app`
 拖入 `Applications` 即可安装。打包脚本会校验镜像，并挂载检查应用、Mihomo 内核与安装入口。
 
 Linux 构建前先准备对应架构的 Mihomo：

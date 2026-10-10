@@ -39,6 +39,12 @@ class ClashForMeConfig {
   /// 是否以 Tun 模式运行
   bool? tunIf;
 
+  /// Menu-bar mode is independent of whether the dashboard is currently open.
+  bool lightMode;
+  bool showTraySpeed;
+  bool sortProxiesByDelay;
+  bool autoUpdateSubscriptions;
+
   ClashForMeConfig({
     this.selectedFile,
     required this.profiles,
@@ -47,7 +53,11 @@ class ClashForMeConfig {
     required this.delayTestUrl,
     this.subscriptionUserAgent = DefaultConfigValue.subscriptionUserAgent,
     this.tunIf,
-  });
+    bool? lightMode,
+    this.showTraySpeed = true,
+    this.sortProxiesByDelay = false,
+    this.autoUpdateSubscriptions = true,
+  }) : lightMode = lightMode ?? Platform.isMacOS;
 
   ClashForMeConfig copyWith({
     String? selectedFile,
@@ -57,6 +67,10 @@ class ClashForMeConfig {
     String? delayTestUrl,
     String? subscriptionUserAgent,
     bool? tunIf,
+    bool? lightMode,
+    bool? showTraySpeed,
+    bool? sortProxiesByDelay,
+    bool? autoUpdateSubscriptions,
   }) {
     var config = ClashForMeConfig(
       selectedFile: selectedFile ?? this.selectedFile,
@@ -67,6 +81,11 @@ class ClashForMeConfig {
       subscriptionUserAgent:
           subscriptionUserAgent ?? this.subscriptionUserAgent,
       tunIf: tunIf ?? this.tunIf,
+      lightMode: lightMode ?? this.lightMode,
+      showTraySpeed: showTraySpeed ?? this.showTraySpeed,
+      sortProxiesByDelay: sortProxiesByDelay ?? this.sortProxiesByDelay,
+      autoUpdateSubscriptions:
+          autoUpdateSubscriptions ?? this.autoUpdateSubscriptions,
     );
     // 对当前选择的订阅进行优化
     var selectElements = config.profiles.where(
