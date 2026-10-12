@@ -166,13 +166,17 @@ GitHub Actions 使用以下加密变量。密钥内容必须是 JKS/PFX 文件�
 | `WINDOWS_CERTIFICATE_PASSWORD` | PFX 密码（GitHub） |
 
 GitHub 的源码流水线监听 `master`、面向 `master` 的 Pull Request 以及 `v*` tag。普通分支
-构建会运行静态分析和测试，并生成 Android AAB、Windows 安装包/便携包、macOS 通用 DMG 和
+构建会运行静态分析和测试，并生成 Android AAB/APK、Windows EXE/MSI 安装包与便携包、macOS 通用 DMG 和
 Linux x64 便携包。全部平台成功后统一汇总产物，并生成 `SHA256SUMS.txt`。
 
 - `master` 推送或在 `master` 上手动运行：自动创建或更新 GitHub Releases 中的 `nightly`
-  开发版，下载地址保持不变。开发版可能没有 Android/Windows 正式签名，macOS 尚未公证。
+  开发版，下载地址保持不变。Android 签名凭据不完整时发布失败；Windows 在可信代码签名接入前仍会发布，
+  但文件名带有 `unsigned` 标记；macOS 尚未公证。
 - Pull Request：只构建并上传 Actions artifacts，不发布 Release。
-- `v*` tag：发布对应正式版；Android 与 Windows 缺少对应签名变量时会直接失败。
+- `v*` tag：发布对应正式版；Android 缺少签名变量时会直接失败，Windows 缺少签名变量时会明确标记为未签名。
+
+Android CI 还会核对 Google Play 上传证书 SHA-1。配置 Windows 证书后，CI 会验证主程序、服务、EXE 和 MSI 的
+Authenticode 签名；未配置时不会伪装成已签名包。完整配置方法见 [CI 发布签名配置](docs/ci-signing.md)。
 
 Actions artifacts 与 GitHub Releases 是两个不同的下载入口。没有推送 `v*` 标签时，旧流程
 只会生成 artifacts，不会创建 Release。新流程的开发版入口为

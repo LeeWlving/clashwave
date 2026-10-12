@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:clash_for_flutter/app/exceptions/message_exception.dart';
 import 'package:clash_for_flutter/app/source/profile_importer.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   late Directory root;
@@ -10,8 +11,8 @@ void main() {
   late String profiles;
   setUp(() async {
     root = await Directory.systemTemp.createTemp('clashwave-file-import-');
-    source = File('${root.path}/local.yml');
-    profiles = '${root.path}/profiles';
+    source = File(p.join(root.path, 'local.yml'));
+    profiles = p.join(root.path, 'profiles');
   });
   tearDown(() => root.delete(recursive: true));
 
@@ -21,9 +22,12 @@ void main() {
     final imported = await ProfileImporter.fromFile(source.path, profiles);
     expect(imported.name, 'local.yml');
     expect(imported.path, source.path);
-    expect(await File('$profiles/${imported.file}').readAsString(), yaml);
+    expect(await File(p.join(profiles, imported.file)).readAsString(), yaml);
     expect(await source.readAsString(), yaml);
-    expect(Directory(profiles).listSync().map((file) => file.path), ['$profiles/${imported.file}']);
+    expect(
+      Directory(profiles).listSync().map((file) => file.path),
+      [p.join(profiles, imported.file)],
+    );
   });
 
   test('invalid files are rejected and leave no partial imported config', () async {

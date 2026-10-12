@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="ClashWave"
+    Manufacturer="ClashWave"
+    Version="$(AppVersion)"
+    UpgradeCode="{A10A0B45-A5E6-4F34-A0B7-9A124CDA1042}"
+    Scope="perMachine"
+    InstallerVersion="500"
+    Compressed="yes">
+
+    <MajorUpgrade
+      DowngradeErrorMessage="A newer version of ClashWave is already installed."
+      Schedule="afterInstallInitialize" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="ClashWaveIcon.ico" SourceFile="!(bindpath.Assets)\app_icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="ClashWaveIcon.ico" />
+    <Property Id="ARPHELPLINK" Value="https://leewlving.github.io/clashwave/support" />
+    <Property Id="ARPURLINFOABOUT" Value="https://leewlving.github.io/clashwave/" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="ClashWave">
+        <Component Id="MainExecutable" Guid="{D457C53C-60B6-4DF6-9B32-07A88C84242D}">
+          <File
+            Id="MainExecutableFile"
+            Source="!(bindpath.Release)\clash_for_flutter.exe"
+            KeyPath="yes">
+            <Shortcut
+              Id="ApplicationStartMenuShortcut"
+              Directory="ApplicationProgramsFolder"
+              Name="ClashWave"
+              Description="ClashWave"
+              WorkingDirectory="INSTALLFOLDER"
+              Advertise="yes" />
+          </File>
+          <RemoveFolder
+            Id="RemoveApplicationProgramsFolder"
+            Directory="ApplicationProgramsFolder"
+            On="uninstall" />
+        </Component>
+        <Component Id="ServiceHelper" Guid="{E7C9A498-B058-46E9-8B6F-4C04629D18F8}">
+          <File
+            Id="ServiceHelperFile"
+            Source="!(bindpath.Release)\clashwave_service.exe"
+            KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="ClashWave" />
+    </StandardDirectory>
+
+    <Feature Id="MainFeature" Title="ClashWave" Level="1">
+      <Files Directory="INSTALLFOLDER" Include="!(bindpath.Release)\**">
+        <Exclude Files="!(bindpath.Release)\clash_for_flutter.exe" />
+        <Exclude Files="!(bindpath.Release)\clashwave_service.exe" />
+        <Exclude Files="!(bindpath.Release)\**\*.pdb" />
+      </Files>
+      <ComponentRef Id="MainExecutable" />
+      <ComponentRef Id="ServiceHelper" />
+    </Feature>
+
+    <CustomAction
+      Id="UninstallCoreService"
+      FileRef="ServiceHelperFile"
+      ExeCommand="--uninstall"
+      Execute="deferred"
+      Impersonate="no"
+      Return="ignore" />
+    <InstallExecuteSequence>
+      <Custom
+        Action="UninstallCoreService"
+        Before="RemoveFiles"
+        Condition="REMOVE = &quot;ALL&quot;" />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>

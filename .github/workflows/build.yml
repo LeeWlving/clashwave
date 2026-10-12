@@ -20,6 +20,8 @@ env:
   MIHOMO_VERSION: '1.19.31'
   MIHOMO_ANDROID_WRAPPER_VERSION: '0.3.5'
   ANDROID_NDK_VERSION: '29.0.14033849'
+  ANDROID_UPLOAD_SHA1: '89:5E:59:2D:BE:68:4F:CE:85:77:6D:3B:F3:72:39:B2:09:B0:C8:3F'
+  WIX_VERSION: '6.0.2'
   INNO_CHINESE_SHA256: 'bf0751fa176569c6faa2f6e17ed2734617bef325d5cc06eae030fdd0258ee778'
   MIHOMO_WINDOWS_ZIP_SHA256: '38b2420799d9e7cde77ec1a19c7150dd17ca77f7fb82d9f62cb8763a307eee67'
   MIHOMO_ANDROID_AAR_SHA256: '41ddcce67de37f406377798c5adbc7ff925e6cd9cadbef3f187da3a03e564176'
@@ -49,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      HAS_ANDROID_SIGNING: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+      HAS_ANDROID_SIGNING: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' && secrets.ANDROID_KEYSTORE_PASSWORD != '' && secrets.ANDROID_KEY_PASSWORD != '' && secrets.ANDROID_KEY_ALIAS != '' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
@@ -84,21 +86,48 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_EXPECTED_SHA1: ${{ env.ANDROID_UPLOAD_SHA1 }}
         run: bash scripts/configure-android-signing.sh
-      - name: Require signing for tags
-        if: startsWith(github.ref, 'refs/tags/') && env.HAS_ANDROID_SIGNING != 'true'
+      - name: Require signing for published builds
+        if: github.event_name != 'pull_request' && env.HAS_ANDROID_SIGNING != 'true'
         run: |
-          echo 'Android signing secrets are required for release tags.' >&2
+          echo 'All Android signing secrets are required for publishable builds.' >&2
           exit 1
       - name: Resolve locked dependencies
         run: flutter pub get --enforce-lockfile
-      - name: Build AAB
-        run: flutter build appbundle --release --no-pub
-      - name: Upload AAB artifact
+      - name: Build Android release artifacts
+        run: |
+          flutter build appbundle --release --no-pub
+          flutter build apk --release --no-pub
+      - name: Verify Android signatures
+        if: env.HAS_ANDROID_SIGNING == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          aab='build/app/outputs/bundle/release/app-release.aab'
+          apk='build/app/outputs/flutter-apk/app-release.apk'
+          jarsigner -verify "$aab"
+          actual_sha1="$(keytool -printcert -jarfile "$aab" | sed -n 's/^[[:space:]]*SHA1: //p' | head -n 1 | tr '[:lower:]' '[:upper:]')"
+          if [[ "$actual_sha1" != "$ANDROID_UPLOAD_SHA1" ]]; then
+            echo "Unexpected Android signer: $actual_sha1" >&2
+            exit 1
+          fi
+          apksigner="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          "$apksigner" verify --verbose --print-certs "$apk"
+      - name: Stage Android artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/android
+          cp build/app/outputs/bundle/release/app-release.aab \
+            dist/android/ClashWave-android.aab
+          cp build/app/outputs/flutter-apk/app-release.apk \
+            dist/android/ClashWave-android.apk
+      - name: Upload Android artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: ClashWave-android-aab
-          path: build/app/outputs/bundle/release/app-release.aab
+          name: ClashWave-android
+          path: dist/android/*
           if-no-files-found: error
 
   windows:
@@ -135,11 +164,6 @@ jobs:
         run: flutter pub get --enforce-lockfile
       - name: Build Windows release
         run: flutter build windows --release --no-pub
-      - name: Require Authenticode signing for tags
-        if: startsWith(github.ref, 'refs/tags/') && env.HAS_WINDOWS_SIGNING != 'true'
-        run: |
-          Write-Error 'Windows signing secrets are required for release tags.'
-          exit 1
       - name: Sign Windows application and service
         if: env.HAS_WINDOWS_SIGNING == 'true'
         shell: pwsh
@@ -167,6 +191,8 @@ jobs:
               /tr 'http://timestamp.digicert.com' /f $certificate `
               /p $env:WINDOWS_CERTIFICATE_PASSWORD $target
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            & $signtool.FullName verify /pa /all $target
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
       - name: Read app version
         id: version
@@ -175,11 +201,23 @@ jobs:
           $line = Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$'
           $version = $line.Matches[0].Groups[1].Value.Split('+')[0]
           "value=$version" >> $env:GITHUB_OUTPUT
+      - name: Record Windows signing status
+        id: windows_signing
+        shell: pwsh
+        run: |
+          if ($env:HAS_WINDOWS_SIGNING -eq 'true') {
+            'suffix=' >> $env:GITHUB_OUTPUT
+            'Windows artifacts are Authenticode signed.' >> $env:GITHUB_STEP_SUMMARY
+          } else {
+            'suffix=-unsigned' >> $env:GITHUB_OUTPUT
+            '### Warning: Windows artifacts are unsigned' >> $env:GITHUB_STEP_SUMMARY
+            'A trusted Windows certificate or SignPath integration has not been configured yet.' >> $env:GITHUB_STEP_SUMMARY
+          }
       - name: Create portable archive
         shell: pwsh
         run: |
           $release = 'build/windows/x64/runner/Release'
-          $output = 'dist/ClashWave-${{ steps.version.outputs.value }}-windows-x64-portable.zip'
+          $output = 'dist/ClashWave-${{ steps.version.outputs.value }}-windows-x64${{ steps.windows_signing.outputs.suffix }}-portable.zip'
           New-Item -ItemType Directory -Path dist -Force | Out-Null
           Compress-Archive -Path "$release/*" -DestinationPath $output -Force
       - name: Create installer
@@ -199,7 +237,34 @@ jobs:
           $template = $template.Replace('{{APP_VERSION}}', '${{ steps.version.outputs.value }}')
           $template | Set-Content build/windows/setup.iss -Encoding UTF8
           & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' /Q build/windows/setup.iss
-      - name: Sign Windows installer
+          if ('${{ steps.windows_signing.outputs.suffix }}' -ne '') {
+            $installer = Get-ChildItem dist -Filter '*-setup.exe' | Select-Object -First 1
+            if ($null -eq $installer) { throw 'The Windows EXE installer was not found' }
+            $unsignedName = $installer.Name.Replace('-setup.exe', '-unsigned-setup.exe')
+            Rename-Item -LiteralPath $installer.FullName -NewName $unsignedName
+          }
+      - name: Create MSI installer
+        shell: pwsh
+        run: |
+          $tools = Join-Path $env:RUNNER_TEMP 'wix'
+          dotnet tool install --tool-path $tools wix --version $env:WIX_VERSION
+          $wix = Join-Path $tools 'wix.exe'
+          $release = (Resolve-Path 'build/windows/x64/runner/Release').Path
+          $assets = (Resolve-Path 'windows/runner/resources').Path
+          $output = "dist/ClashWave-${{ steps.version.outputs.value }}-windows-x64${{ steps.windows_signing.outputs.suffix }}.msi"
+          & $wix build windows/packaging/msi/product.wxs `
+            -arch x64 `
+            -d "AppVersion=${{ steps.version.outputs.value }}" `
+            -bindpath "Release=$release" `
+            -bindpath "Assets=$assets" `
+            -intermediateFolder build/windows/wix `
+            -o $output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Flutter bundles its icon fonts as application data, not as system
+          # fonts. ICE60 misclassifies their .otf/.ttf extensions here.
+          & $wix msi validate $output -sice ICE60
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Sign and verify Windows installers
         if: env.HAS_WINDOWS_SIGNING == 'true'
         shell: pwsh
         env:
@@ -212,11 +277,20 @@ jobs:
             Where-Object FullName -Match '\\x64\\signtool\.exe$' |
             Sort-Object FullName -Descending |
             Select-Object -First 1
-          $installer = Get-ChildItem dist -Filter '*-setup.exe' | Select-Object -First 1
-          & $signtool.FullName sign /fd SHA256 /td SHA256 `
-            /tr 'http://timestamp.digicert.com' /f $certificate `
-            /p $env:WINDOWS_CERTIFICATE_PASSWORD $installer.FullName
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $installers = @(
+            Get-ChildItem dist -Filter '*-setup.exe' | Select-Object -First 1
+            Get-ChildItem dist -Filter '*.msi' | Select-Object -First 1
+          )
+          foreach ($installer in $installers) {
+            if ($null -eq $installer) { throw 'A Windows installer was not found' }
+            & $signtool.FullName sign /fd SHA256 /td SHA256 `
+              /tr 'http://timestamp.digicert.com' /f $certificate `
+              /p $env:WINDOWS_CERTIFICATE_PASSWORD $installer.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            & $signtool.FullName verify /pa /all $installer.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          Remove-Item -LiteralPath $certificate -Force
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -224,6 +298,7 @@ jobs:
           path: |
             dist/*.zip
             dist/*.exe
+            dist/*.msi
           if-no-files-found: error
 
   macos:
@@ -324,12 +399,21 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          cp raw-assets/ClashWave-android-aab/app-release.aab \
+          cp raw-assets/ClashWave-android/ClashWave-android.aab \
             release-assets/ClashWave-android.aab
+          cp raw-assets/ClashWave-android/ClashWave-android.apk \
+            release-assets/ClashWave-android.apk
+          if compgen -G 'raw-assets/ClashWave-windows-x64/*-unsigned-*' >/dev/null; then
+            windows_suffix='-unsigned'
+          else
+            windows_suffix=''
+          fi
           cp raw-assets/ClashWave-windows-x64/*-portable.zip \
-            release-assets/ClashWave-windows-x64-portable.zip
+            "release-assets/ClashWave-windows-x64${windows_suffix}-portable.zip"
           cp raw-assets/ClashWave-windows-x64/*-setup.exe \
-            release-assets/ClashWave-windows-x64-setup.exe
+            "release-assets/ClashWave-windows-x64${windows_suffix}-setup.exe"
+          cp raw-assets/ClashWave-windows-x64/*.msi \
+            "release-assets/ClashWave-windows-x64${windows_suffix}.msi"
           cp raw-assets/ClashWave-macos-universal/*.dmg \
             release-assets/ClashWave-macos-universal.dmg
           cp raw-assets/ClashWave-linux-x64/*.tar.gz \
@@ -354,9 +438,15 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
+          if compgen -G 'release-assets/ClashWave-windows-x64-unsigned*' >/dev/null; then
+            windows_notice='Warning: Windows EXE/MSI/ZIP artifacts are currently unsigned. Android AAB/APK artifacts are signed and verified.'
+          else
+            windows_notice='Android and Windows artifacts are signed and verified.'
+          fi
           if [[ "$RELEASE_TAG" == nightly ]]; then
-            printf '%s\n\n%s\n\n%s\n' \
-              'Development build from master. Android AAB and Windows binaries may be unsigned; macOS is not notarized.' \
+            printf '%s\n\n%s\n\n%s\n\n%s\n' \
+              'Development build from master. macOS is not notarized.' \
+              "$windows_notice" \
               "Commit: $GITHUB_SHA" "Build: $RUN_URL" > release-notes.md
             if gh release view nightly >/dev/null 2>&1; then
               gh release upload nightly release-assets/* --clobber
@@ -373,7 +463,8 @@ jobs:
             gh release upload "$RELEASE_TAG" release-assets/* --clobber
           else
             gh release create "$RELEASE_TAG" release-assets/* --verify-tag \
-              --title "ClashWave $RELEASE_TAG" --generate-notes
+              --title "ClashWave $RELEASE_TAG" --generate-notes \
+              --notes "$windows_notice"
           fi
           printf 'Release: https://github.com/%s/releases/tag/%s\n' \
             "$GH_REPO" "$RELEASE_TAG" >> "$GITHUB_STEP_SUMMARY"
