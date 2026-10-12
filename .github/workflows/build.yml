@@ -443,13 +443,32 @@ jobs:
           else
             windows_notice='Android and Windows artifacts are signed and verified.'
           fi
+          replace_release_assets() {
+            local tag="$1"
+            local asset
+            for asset in \
+              ClashWave-android.aab \
+              ClashWave-android.apk \
+              ClashWave-windows-x64-portable.zip \
+              ClashWave-windows-x64-setup.exe \
+              ClashWave-windows-x64.msi \
+              ClashWave-windows-x64-unsigned-portable.zip \
+              ClashWave-windows-x64-unsigned-setup.exe \
+              ClashWave-windows-x64-unsigned.msi \
+              ClashWave-macos-universal.dmg \
+              ClashWave-linux-x64.tar.gz \
+              SHA256SUMS.txt; do
+              gh release delete-asset "$tag" "$asset" --yes >/dev/null 2>&1 || true
+            done
+            gh release upload "$tag" release-assets/*
+          }
           if [[ "$RELEASE_TAG" == nightly ]]; then
             printf '%s\n\n%s\n\n%s\n\n%s\n' \
               'Development build from master. macOS is not notarized.' \
               "$windows_notice" \
               "Commit: $GITHUB_SHA" "Build: $RUN_URL" > release-notes.md
             if gh release view nightly >/dev/null 2>&1; then
-              gh release upload nightly release-assets/* --clobber
+              replace_release_assets nightly
               gh api --method PATCH "repos/$GH_REPO/git/refs/tags/nightly" \
                 -f sha="$GITHUB_SHA" -F force=true
               gh release edit nightly --title 'ClashWave development build' \
@@ -460,7 +479,7 @@ jobs:
                 --prerelease --latest=false
             fi
           elif gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" release-assets/* --clobber
+            replace_release_assets "$RELEASE_TAG"
           else
             gh release create "$RELEASE_TAG" release-assets/* --verify-tag \
               --title "ClashWave $RELEASE_TAG" --generate-notes \
